@@ -13,7 +13,7 @@
 
 </div>
 
-![Screenshot](assets/screenshot.png)
+![Screenshot](assets/screenshot.webp)
 
 ---
 
@@ -78,10 +78,6 @@ View all releases and download previous versions: [Releases](https://github.com/
 | Windows 10/11  | ZIP (x64) | ✅ Fully Supported |
 | macOS 10.15+   | DMG (x64) | ✅ Fully Supported |
 | Linux (x86_64) | AppImage  | ✅ Fully Supported |
-
-## 🖼️ Screenshots
-
-_Screenshots coming soon!_
 
 ## 🚀 Quick Start
 
