@@ -1130,28 +1130,24 @@ void MainWindow::updateGameVersionDisplay() {
         case LibTXD::GameVersion::GTA3_3:
         case LibTXD::GameVersion::GTA3_4:
             gameName = "GTA:III";
-            color = "#FF6B6B"; // Red (GTA3 primary color)
+            color = "#00a8ff";
             break;
         case LibTXD::GameVersion::VC_PC:
         case LibTXD::GameVersion::VC_PS2:
             gameName = "GTA:VC";
-            color = "#4ECDC4"; // Cyan/Turquoise (Vice City primary color)
+            color = "#f195ac";
             break;
         case LibTXD::GameVersion::SA:
             gameName = "GTA:SA";
-            color = "#FFD93D"; // Yellow/Gold (San Andreas primary color)
+            color = "#906210";
             break;
         default:
-            gameName = "";
-            color = "";
+            gameName = "Unknown";
+            color = "#e1e1e1";
             break;
     }
     
-    if (!gameName.isEmpty()) {
-        statusGameLabel->setText(QString("<span style='color: %1; font-weight: bold;'>%2</span>").arg(color, gameName));
-    } else {
-        statusGameLabel->setText("");
-    }
+    statusGameLabel->setText(QString("<span style='color: %1; font-weight: bold;'>%2</span>").arg(color, gameName));
 }
 
 bool MainWindow::loadTXD(const QString& filepath) {
