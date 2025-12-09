@@ -79,12 +79,13 @@ jobs:
         uses: microsoft/setup-msbuild@v1.1
 
       - name: Configure CMake
+        shell: pwsh
         run: |
-          $cmakeArgs = "-B build -G `"Visual Studio 17 2022`" -A x64"
+          $cmakeArgs = @("-B", "build", "-G", "Visual Studio 17 2022", "-A", "x64")
           if ($env:VERSION) {
-            $cmakeArgs += " -DPROJECT_VERSION=$env:VERSION"
+            $cmakeArgs += "-DPROJECT_VERSION=$env:VERSION"
           }
-          cmake $cmakeArgs
+          cmake @cmakeArgs
         env:
           CMAKE_PREFIX_PATH: ${{ env.QT_DIR }}
           VERSION: ${{ env.VERSION }}
