@@ -1931,6 +1931,13 @@ void MainWindow::onReplaceDiffuseRequested(int index) {
     QImage rgbaImage = image.convertedTo(QImage::Format_RGBA8888);
     
     auto& mipmap = texture->getMipmap(0);
+    uint32_t oldWidth = mipmap.width;
+    uint32_t oldHeight = mipmap.height;
+    bool hadAlpha = texture->hasAlpha();
+    
+    // Store original imported image dimensions (before any resizing)
+    int importedWidth = rgbaImage.width();
+    int importedHeight = rgbaImage.height();
     
     // Check dimensions match
     if (rgbaImage.width() != static_cast<int>(mipmap.width) || rgbaImage.height() != static_cast<int>(mipmap.height)) {
@@ -1947,29 +1954,53 @@ void MainWindow::onReplaceDiffuseRequested(int index) {
         }
     }
     
+    // Check if new diffuse resolution differs from old diffuse resolution
+    // If the imported image had different dimensions than the old texture, and texture had alpha,
+    // we need to reset alpha to white (even if user chose to resize to match)
+    // The requirement: "if diffuse is imported and alpha resolution differs from that of new diffuse"
+    // This means: if the imported diffuse resolution differs from the old alpha resolution
+    bool importedDimensionsDiffer = (importedWidth != static_cast<int>(oldWidth) || 
+                                     importedHeight != static_cast<int>(oldHeight));
+    bool needsAlphaReset = hadAlpha && importedDimensionsDiffer;
+    
     // Convert existing texture to RGBA8 to preserve alpha if needed
     auto existingRGBA = LibTXD::TextureConverter::convertToRGBA8(*texture, 0);
-    bool hasAlpha = texture->hasAlpha();
+    
+    // Update mipmap dimensions if they changed (after user chose to resize)
+    if (dimensionsChanged) {
+        mipmap.width = rgbaImage.width();
+        mipmap.height = rgbaImage.height();
+    }
     
     // Prepare new texture data
     const uint8_t* imageData = rgbaImage.constBits();
     size_t dataSize = mipmap.width * mipmap.height * 4;
     std::vector<uint8_t> newTextureData(dataSize);
     
-    if (hasAlpha && existingRGBA) {
-        // Preserve existing alpha channel, replace RGB
+    if (hadAlpha && existingRGBA && !dimensionsChanged) {
+        // Preserve existing alpha channel, replace RGB (dimensions match)
         for (size_t i = 0; i < dataSize; i += 4) {
             newTextureData[i] = imageData[i];     // R
             newTextureData[i + 1] = imageData[i + 1]; // G
             newTextureData[i + 2] = imageData[i + 2]; // B
             newTextureData[i + 3] = existingRGBA[i + 3]; // A (preserve existing)
         }
+        texture->setHasAlpha(true);
     } else {
         // Replace everything (including alpha if new image has it)
         std::memcpy(newTextureData.data(), imageData, dataSize);
-        // Update alpha flag if new image has alpha
-        bool newHasAlpha = rgbaImage.hasAlphaChannel();
-        texture->setHasAlpha(newHasAlpha);
+        
+        // If dimensions changed and texture had alpha, reset alpha to white (#ffffff)
+        if (needsAlphaReset) {
+            for (size_t i = 3; i < dataSize; i += 4) {
+                newTextureData[i] = 255; // White alpha
+            }
+            texture->setHasAlpha(true); // Keep alpha enabled
+        } else {
+            // Update alpha flag based on new image
+            bool newHasAlpha = rgbaImage.hasAlphaChannel();
+            texture->setHasAlpha(newHasAlpha);
+        }
     }
     
     // Compress if needed
@@ -2036,19 +2067,14 @@ void MainWindow::onReplaceAlphaRequested(int index) {
     
     auto& mipmap = texture->getMipmap(0);
     
-    // Check dimensions match
+    // Check dimensions match - if they don't, alert user and cancel (no resize option)
     if (rgbaImage.width() != static_cast<int>(mipmap.width) || rgbaImage.height() != static_cast<int>(mipmap.height)) {
-        int ret = QMessageBox::question(this, "Dimension Mismatch",
-            QString("The image dimensions (%1x%2) don't match the texture dimensions (%3x%4).\n"
-                    "Resize the image to match?").arg(rgbaImage.width()).arg(rgbaImage.height())
-                    .arg(mipmap.width).arg(mipmap.height),
-            QMessageBox::Yes | QMessageBox::No);
-        if (ret == QMessageBox::Yes) {
-            rgbaImage = rgbaImage.scaled(mipmap.width, mipmap.height, 
-                                        Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-        } else {
-            return;
-        }
+        QMessageBox::warning(this, "Dimension Mismatch",
+            QString("The alpha image dimensions (%1x%2) don't match the diffuse texture dimensions (%3x%4).\n\n"
+                   "Alpha channel resolution must match the diffuse resolution.\n"
+                   "Operation cancelled.").arg(rgbaImage.width()).arg(rgbaImage.height())
+                   .arg(mipmap.width).arg(mipmap.height));
+        return;
     }
     
     // Get existing texture data to preserve RGB

@@ -1,8 +1,10 @@
 #include "TexturePropertiesWidget.h"
+#include "libtxd/txd_converter.h"
 #include <QFormLayout>
 #include <QLabel>
 #include <QIntValidator>
 #include <QFontMetrics>
+#include <cstring>
 
 TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     : QWidget(parent), currentTexture(nullptr) {
@@ -390,9 +392,73 @@ void TexturePropertiesWidget::onMipmapCountChanged() {
 }
 
 void TexturePropertiesWidget::onAlphaChannelToggled(bool enabled) {
-    if (currentTexture) {
-        currentTexture->setHasAlpha(enabled);
-        emit propertyChanged();
+    if (!currentTexture || currentTexture->getMipmapCount() == 0) {
+        return;
     }
+    
+    if (enabled) {
+        bool needsReset = false;
+        bool hadAlphaBefore = currentTexture->hasAlpha();
+        
+        if (!hadAlphaBefore) {
+            // Case 1: Texture never had alpha before
+            needsReset = true;
+        } else {
+            // Case 2: Check if existing alpha resolution matches diffuse resolution
+            // In libtxd, alpha and diffuse are in the same mipmap, so they should always match
+            // But we check to be safe - if conversion fails, reset to white
+            const auto& mipmap = currentTexture->getMipmap(0);
+            auto existingRGBA = LibTXD::TextureConverter::convertToRGBA8(*currentTexture, 0);
+            if (!existingRGBA) {
+                // Can't verify alpha, reset to white
+                needsReset = true;
+            }
+            // If alpha exists and conversion succeeds, alpha should match diffuse (same mipmap)
+            // So we don't need to reset in this case
+        }
+        
+        if (needsReset) {
+            // Reset alpha to white (#ffffff)
+            const auto& mipmap = currentTexture->getMipmap(0);
+            auto rgbaData = LibTXD::TextureConverter::convertToRGBA8(*currentTexture, 0);
+            
+            if (rgbaData) {
+                size_t dataSize = mipmap.width * mipmap.height * 4;
+                std::vector<uint8_t> newTextureData(dataSize);
+                std::memcpy(newTextureData.data(), rgbaData.get(), dataSize);
+                
+                // Set all alpha channels to white (255)
+                for (size_t i = 3; i < dataSize; i += 4) {
+                    newTextureData[i] = 255;
+                }
+                
+                // Update texture data
+                LibTXD::Compression compression = currentTexture->getCompression();
+                if (compression != LibTXD::Compression::NONE) {
+                    auto compressedData = LibTXD::TextureConverter::compressToDXT(newTextureData.data(), mipmap.width, mipmap.height, compression, 1.0f);
+                    if (compressedData) {
+                        size_t compressedSize = LibTXD::TextureConverter::getCompressedDataSize(mipmap.width, mipmap.height, compression);
+                        auto& mip = currentTexture->getMipmap(0);
+                        mip.data.assign(compressedData.get(), compressedData.get() + compressedSize);
+                        mip.dataSize = compressedSize;
+                    } else {
+                        // Fallback to uncompressed
+                        currentTexture->setCompression(LibTXD::Compression::NONE);
+                        auto& mip = currentTexture->getMipmap(0);
+                        mip.data = newTextureData;
+                        mip.dataSize = dataSize;
+                    }
+                } else {
+                    // Uncompressed - update mipmap data directly
+                    auto& mip = currentTexture->getMipmap(0);
+                    mip.data = newTextureData;
+                    mip.dataSize = dataSize;
+                }
+            }
+        }
+    }
+    
+    currentTexture->setHasAlpha(enabled);
+    emit propertyChanged();
 }
 
