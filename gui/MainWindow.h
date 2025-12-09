@@ -52,6 +52,7 @@ private slots:
     void onReplaceDiffuseRequested(int index);
     void onReplaceAlphaRequested(int index);
     void onRemoveRequested(int index);
+    void onPreviewTabChanged();
 
 private:
     void setupUI();

@@ -196,6 +196,7 @@ void MainWindow::setupUI() {
     // Center panel: Preview
     previewWidget = new TexturePreviewWidget(this);
     previewWidget->setObjectName("previewWidget");
+    connect(previewWidget, &TexturePreviewWidget::tabChanged, this, &MainWindow::onPreviewTabChanged);
     mainSplitter->addWidget(previewWidget);
     
     // Right panel: Properties
@@ -1684,7 +1685,28 @@ void MainWindow::importTexture() {
         return;
     }
     
-    // Ask for image file
+    // Check if a texture is selected and which tab is active
+    auto activeTab = previewWidget->getCurrentTab();
+    
+    // If texture is selected and on Image or Alpha tab, replace that data
+    if (selectedTextureIndex >= 0) {
+        if (activeTab == TexturePreviewWidget::ActiveTab::Image) {
+            // Replace diffuse
+            onReplaceDiffuseRequested(selectedTextureIndex);
+            return;
+        } else if (activeTab == TexturePreviewWidget::ActiveTab::Alpha) {
+            // Replace alpha
+            onReplaceAlphaRequested(selectedTextureIndex);
+            return;
+        } else if (activeTab == TexturePreviewWidget::ActiveTab::Mixed) {
+            // Mixed tab - import should be disabled, but just in case
+            QMessageBox::warning(this, "Import Error", 
+                "Cannot import on Combined view. Switch to Image or Alpha tab.");
+            return;
+        }
+    }
+    
+    // No texture selected or tab not applicable - add new texture
     QString filepath = QFileDialog::getOpenFileName(
         this, "Import Texture", "",
         "Image Files (*.png *.jpg *.jpeg *.bmp);;PNG Images (*.png);;JPEG Images (*.jpg *.jpeg);;BMP Images (*.bmp);;All Files (*)"
@@ -1877,8 +1899,30 @@ void MainWindow::onExportRequested(int index) {
 }
 
 void MainWindow::onImportRequested(int index) {
-    // Import creates a new texture, so we don't need to set the index
+    // Import replaces diffuse or alpha based on active tab
     importTexture();
+}
+
+void MainWindow::onPreviewTabChanged() {
+    // Enable/disable import based on active tab
+    if (!importTextureAction) {
+        return;
+    }
+    
+    // If no texture selected, import is already disabled
+    if (selectedTextureIndex < 0) {
+        return;
+    }
+    
+    auto tab = previewWidget->getCurrentTab();
+    
+    // Disable import on mixed/combined tab
+    if (tab == TexturePreviewWidget::ActiveTab::Mixed) {
+        importTextureAction->setEnabled(false);
+    } else if (tab == TexturePreviewWidget::ActiveTab::Image || 
+               tab == TexturePreviewWidget::ActiveTab::Alpha) {
+        importTextureAction->setEnabled(true);
+    }
 }
 
 void MainWindow::onReplaceDiffuseRequested(int index) {

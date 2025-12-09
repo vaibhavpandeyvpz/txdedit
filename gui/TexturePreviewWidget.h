@@ -19,6 +19,13 @@ public:
     // Simple: just pass RGBA data directly
     void setTexture(const uint8_t* rgbaData, int width, int height, bool hasAlpha);
     void clear();
+    
+    // Tab type for import functionality
+    enum class ActiveTab { Image, Alpha, Mixed, None };
+    ActiveTab getCurrentTab() const;
+
+signals:
+    void tabChanged(ActiveTab tab);
 
 private slots:
     void onTabChanged(int index);

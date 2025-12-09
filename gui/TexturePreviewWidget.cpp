@@ -184,6 +184,22 @@ void TexturePreviewWidget::clear() {
     }
 }
 
+TexturePreviewWidget::ActiveTab TexturePreviewWidget::getCurrentTab() const {
+    if (!tabWidget || !tabWidget->isVisible()) {
+        return ActiveTab::None;
+    }
+    
+    int currentIndex = tabWidget->currentIndex();
+    if (currentIndex == 0) {
+        return ActiveTab::Image;
+    } else if (alphaTabsVisible && currentIndex == alphaTabIndex) {
+        return ActiveTab::Alpha;
+    } else if (alphaTabsVisible && currentIndex == mixedTabIndex) {
+        return ActiveTab::Mixed;
+    }
+    return ActiveTab::None;
+}
+
 void TexturePreviewWidget::onTabChanged(int index) {
     // Reset zoom when switching tabs
     if (index == 0 && imageView) {
@@ -193,4 +209,7 @@ void TexturePreviewWidget::onTabChanged(int index) {
     } else if (alphaTabsVisible && index == mixedTabIndex && mixedView) {
         mixedView->zoom100();
     }
+    
+    // Emit tab changed signal
+    emit tabChanged(getCurrentTab());
 }
