@@ -140,7 +140,8 @@ bool TextureDictionary::readFromStream(std::istream& stream) {
     }
     
     version = header.version;
-    gameVersion = detectGameVersion(version);
+    // Don't detect game version yet - wait until after reading textures
+    // so we can use platform information
     
     size_t sectionStart = stream.tellg();
     size_t sectionEnd = sectionStart + header.length;
@@ -185,6 +186,9 @@ bool TextureDictionary::readFromStream(std::istream& stream) {
             stream.seekg(childHeader.length, std::ios::cur);
         }
     }
+    
+    // Detect game version after reading textures (so we can use platform info)
+    gameVersion = detectGameVersion(version);
     
     return true;
 }
@@ -239,16 +243,46 @@ GameVersion TextureDictionary::detectGameVersion(uint32_t versionValue) {
     uint16_t lower16 = static_cast<uint16_t>(versionValue & 0xFFFF);
     uint16_t upper16 = static_cast<uint16_t>((versionValue >> 16) & 0xFFFF);
     
+    // Check GTA3 patterns first (more specific)
+    // GTA3 can have various version values
+    if (versionValue == 0x00000302 || versionValue == 0x00000304 || versionValue == 0x00000310) {
+        return GameVersion::GTA3_1;
+    } else if (versionValue == 0x0800FFFF) {
+        return GameVersion::GTA3_4;
+    } else if (versionValue == 0x0C02FFFF) {
+        // 0x0C02FFFF is used by both GTA3 (PC) and VC (PS2)
+        // Use platform information from textures to distinguish
+        bool hasD3DPlatform = false;
+        bool hasPS2Platform = false;
+        
+        for (const auto& texture : textures) {
+            Platform platform = texture.getPlatform();
+            if (platform == Platform::D3D8 || platform == Platform::D3D9) {
+                hasD3DPlatform = true;
+            } else if (platform == Platform::PS2 || platform == Platform::PS2_FOURCC) {
+                hasPS2Platform = true;
+            }
+        }
+        
+        // If we have D3D textures, it's likely GTA3 PC
+        // If we have PS2 textures, it's likely VC PS2
+        // Default to GTA3_4 if we can't determine (more common for PC files)
+        if (hasD3DPlatform && !hasPS2Platform) {
+            return GameVersion::GTA3_4;
+        } else if (hasPS2Platform && !hasD3DPlatform) {
+            return GameVersion::VC_PS2;
+        }
+        // If mixed or no platform info, default to GTA3_4 (common case)
+        return GameVersion::GTA3_4;
+    }
+    
+    // Check VC and SA patterns
     if (upper16 == 0x0C02 && lower16 == 0xFFFF) {
         return GameVersion::VC_PS2;
     } else if (upper16 == 0x1003 && lower16 == 0xFFFF) {
         return GameVersion::VC_PC;
     } else if (upper16 == 0x1803 && lower16 == 0xFFFF) {
         return GameVersion::SA;
-    } else if (versionValue == 0x00000302 || versionValue == 0x00000304 || versionValue == 0x00000310) {
-        return GameVersion::GTA3_1;
-    } else if (versionValue == 0x0800FFFF) {
-        return GameVersion::GTA3_4;
     }
     
     return GameVersion::UNKNOWN;
