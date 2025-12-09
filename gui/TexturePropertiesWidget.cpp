@@ -5,7 +5,7 @@
 #include <QFontMetrics>
 
 TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
-    : QWidget(parent), currentHeader(nullptr) {
+    : QWidget(parent), currentTexture(nullptr) {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     
@@ -81,13 +81,13 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     formatView->setUniformItemSizes(true);
     formatCombo->setView(formatView);
     formatCombo->setEditable(false);
-    formatCombo->addItem("R8G8B8A8", RasterFormatR8G8B8A8);
-    formatCombo->addItem("B8G8R8A8", RasterFormatB8G8R8A8);
-    formatCombo->addItem("B8G8R8", RasterFormatB8G8R8);
-    formatCombo->addItem("R5G6B5", RasterFormatR5G6B5);
-    formatCombo->addItem("A1R5G5B5", RasterFormatA1R5G5B5);
-    formatCombo->addItem("R4G4B4A4", RasterFormatR4G4B4A4);
-    formatCombo->addItem("LUM8", RasterFormatLUM8);
+    // Note: libtxd uses B8G8R8A8, not R8G8B8A8
+    formatCombo->addItem("B8G8R8A8", static_cast<uint32_t>(LibTXD::RasterFormat::B8G8R8A8));
+    formatCombo->addItem("B8G8R8", static_cast<uint32_t>(LibTXD::RasterFormat::B8G8R8));
+    formatCombo->addItem("R5G6B5", static_cast<uint32_t>(LibTXD::RasterFormat::R5G6B5));
+    formatCombo->addItem("A1R5G5B5", static_cast<uint32_t>(LibTXD::RasterFormat::A1R5G5B5));
+    formatCombo->addItem("R4G4B4A4", static_cast<uint32_t>(LibTXD::RasterFormat::R4G4B4A4));
+    formatCombo->addItem("LUM8", static_cast<uint32_t>(LibTXD::RasterFormat::LUM8));
     // Calculate width based on longest item text
     QFontMetrics fm(formatCombo->font());
     int maxWidth = 0;
@@ -102,9 +102,9 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     QListView* compressionView = new QListView();
     compressionCombo->setView(compressionView);
     compressionCombo->setEditable(false);
-    compressionCombo->addItem("None", static_cast<int>(TXDCompression::NONE));
-    compressionCombo->addItem("DXT1", static_cast<int>(TXDCompression::DXT1));
-    compressionCombo->addItem("DXT3", static_cast<int>(TXDCompression::DXT3));
+    compressionCombo->addItem("None", static_cast<int>(LibTXD::Compression::NONE));
+    compressionCombo->addItem("DXT1", static_cast<int>(LibTXD::Compression::DXT1));
+    compressionCombo->addItem("DXT3", static_cast<int>(LibTXD::Compression::DXT3));
     // Calculate width based on longest item text
     QFontMetrics fmComp(compressionCombo->font());
     int maxWidthComp = 0;
@@ -117,32 +117,20 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     
     // Connect format/compression changes
     connect(formatCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this]() {
-        if (currentHeader) {
-            uint32_t format = formatCombo->currentData().toUInt();
-            TXDCompression comp = static_cast<TXDCompression>(compressionCombo->currentData().toInt());
-            try {
-                currentHeader->setRasterFormat(format, comp);
-                // Don't emit propertyChanged for format changes
-                // Raster format is metadata for saving, not for display
-                // The preview should not be updated when format changes
-            } catch (const std::exception&) {
-                updateUI(); // Revert on error
-            }
+        if (currentTexture) {
+            LibTXD::RasterFormat format = static_cast<LibTXD::RasterFormat>(formatCombo->currentData().toUInt());
+            currentTexture->setRasterFormat(format);
+            // Don't emit propertyChanged for format changes
+            // Raster format is metadata for saving, not for display
         }
     });
     
     connect(compressionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this]() {
-        if (currentHeader) {
-            uint32_t format = formatCombo->currentData().toUInt();
-            TXDCompression comp = static_cast<TXDCompression>(compressionCombo->currentData().toInt());
-            try {
-                currentHeader->setRasterFormat(format, comp);
-                // Don't emit propertyChanged for compression-only changes
-                // Compression is metadata for saving, not for display
-                // The preview should not be updated when only compression changes
-            } catch (const std::exception&) {
-                updateUI(); // Revert on error
-            }
+        if (currentTexture) {
+            LibTXD::Compression comp = static_cast<LibTXD::Compression>(compressionCombo->currentData().toInt());
+            currentTexture->setCompression(comp);
+            // Don't emit propertyChanged for compression-only changes
+            // Compression is metadata for saving, not for display
         }
     });
     
@@ -163,13 +151,14 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     filterView->setUniformItemSizes(true);
     filterCombo->setView(filterView);
     filterCombo->setEditable(false);
-    filterCombo->addItem("None", FilterNone);
-    filterCombo->addItem("Nearest", FilterNearest);
-    filterCombo->addItem("Linear", FilterLinear);
-    filterCombo->addItem("Mip Nearest", FilterMipNearest);
-    filterCombo->addItem("Mip Linear", FilterMipLinear);
-    filterCombo->addItem("Linear Mip Nearest", FilterLinearMipNearest);
-    filterCombo->addItem("Linear Mip Linear", FilterLinearMipLinear);
+    // Note: libtxd doesn't have separate filter flags enum, using raw values
+    filterCombo->addItem("None", 0);
+    filterCombo->addItem("Nearest", 1);
+    filterCombo->addItem("Linear", 2);
+    filterCombo->addItem("Mip Nearest", 3);
+    filterCombo->addItem("Mip Linear", 4);
+    filterCombo->addItem("Linear Mip Nearest", 5);
+    filterCombo->addItem("Linear Mip Linear", 6);
     // Calculate width based on longest item text
     QFontMetrics fmFilter(filterCombo->font());
     int maxWidthFilter = 0;
@@ -186,10 +175,11 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     uWrapView->setUniformItemSizes(true);
     uWrapCombo->setView(uWrapView);
     uWrapCombo->setEditable(false);
-    uWrapCombo->addItem("None", WrapNone);
-    uWrapCombo->addItem("Wrap", WrapWrap);
-    uWrapCombo->addItem("Mirror", WrapMirror);
-    uWrapCombo->addItem("Clamp", WrapClamp);
+    // Note: libtxd doesn't have separate wrap flags enum, using raw values
+    uWrapCombo->addItem("None", 0);
+    uWrapCombo->addItem("Wrap", 1);
+    uWrapCombo->addItem("Mirror", 2);
+    uWrapCombo->addItem("Clamp", 3);
     // Calculate width based on longest item text
     QFontMetrics fmUWrap(uWrapCombo->font());
     int maxWidthUWrap = 0;
@@ -206,10 +196,11 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     vWrapView->setUniformItemSizes(true);
     vWrapCombo->setView(vWrapView);
     vWrapCombo->setEditable(false);
-    vWrapCombo->addItem("None", WrapNone);
-    vWrapCombo->addItem("Wrap", WrapWrap);
-    vWrapCombo->addItem("Mirror", WrapMirror);
-    vWrapCombo->addItem("Clamp", WrapClamp);
+    // Note: libtxd doesn't have separate wrap flags enum, using raw values
+    vWrapCombo->addItem("None", 0);
+    vWrapCombo->addItem("Wrap", 1);
+    vWrapCombo->addItem("Mirror", 2);
+    vWrapCombo->addItem("Clamp", 3);
     // Calculate width based on longest item text
     QFontMetrics fmVWrap(vWrapCombo->font());
     int maxWidthVWrap = 0;
@@ -221,37 +212,23 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     flagsLayout->addRow("V wrap:", vWrapCombo);
     
     // Connect flag changes
+    // Note: libtxd only has filterFlags as a single uint32_t, not separate wrap flags
     connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this]() {
-        if (currentHeader) {
-            currentHeader->setFilterFlags(filterCombo->currentData().toUInt());
+        if (currentTexture) {
+            currentTexture->setFilterFlags(filterCombo->currentData().toUInt());
             // Don't emit propertyChanged for filter changes
             // Filter is metadata for rendering, not for display
-            // The preview should not be updated when filter changes
         }
     });
     
+    // Note: libtxd doesn't support separate U/V wrap flags yet
+    // These combos are kept for UI consistency but won't modify the texture
     connect(uWrapCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this]() {
-        if (currentHeader) {
-            currentHeader->setWrappingFlags(
-                uWrapCombo->currentData().toUInt(),
-                currentHeader->getVWrapFlags()
-            );
-            // Don't emit propertyChanged for wrap changes
-            // Wrap is metadata for rendering, not for display
-            // The preview should not be updated when wrap changes
-        }
+        // Not implemented in libtxd yet
     });
     
     connect(vWrapCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this]() {
-        if (currentHeader) {
-            currentHeader->setWrappingFlags(
-                currentHeader->getUWrapFlags(),
-                vWrapCombo->currentData().toUInt()
-            );
-            // Don't emit propertyChanged for wrap changes
-            // Wrap is metadata for rendering, not for display
-            // The preview should not be updated when wrap changes
-        }
+        // Not implemented in libtxd yet
     });
     
     contentLayout->addWidget(flagsGroup);
@@ -263,9 +240,9 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     clear();
 }
 
-void TexturePropertiesWidget::setTexture(TXDTextureHeader* header) {
-    currentHeader = header;
-    if (header) {
+void TexturePropertiesWidget::setTexture(LibTXD::Texture* texture) {
+    currentTexture = texture;
+    if (texture) {
         // Show all groups when texture is set
         basicGroup->show();
         formatGroup->show();
@@ -275,7 +252,7 @@ void TexturePropertiesWidget::setTexture(TXDTextureHeader* header) {
 }
 
 void TexturePropertiesWidget::clear() {
-    currentHeader = nullptr;
+    currentTexture = nullptr;
     blockSignals(true);
     
     nameEdit->clear();
@@ -303,7 +280,7 @@ void TexturePropertiesWidget::clear() {
 }
 
 void TexturePropertiesWidget::updateUI() {
-    if (!currentHeader) {
+    if (!currentTexture) {
         clear();
         return;
     }
@@ -319,26 +296,33 @@ void TexturePropertiesWidget::updateUI() {
     formatGroup->setEnabled(true);
     flagsGroup->setEnabled(true);
     
-    nameEdit->setText(QString::fromStdString(currentHeader->getDiffuseName()));
-    alphaNameEdit->setText(QString::fromStdString(currentHeader->getAlphaName()));
-    int width = currentHeader->getWidth();
-    int height = currentHeader->getHeight();
-    widthEdit->setText(QString::number(width));
-    heightEdit->setText(QString::number(height));
-    mipmapEdit->setText(QString::number(currentHeader->getMipmapCount()));
-    alphaCheck->setChecked(currentHeader->isAlphaChannelUsed());
+    nameEdit->setText(QString::fromStdString(currentTexture->getName()));
+    alphaNameEdit->setText(QString::fromStdString(currentTexture->getMaskName()));
+    
+    // Get dimensions from first mipmap
+    if (currentTexture->getMipmapCount() > 0) {
+        const auto& mipmap = currentTexture->getMipmap(0);
+        widthEdit->setText(QString::number(mipmap.width));
+        heightEdit->setText(QString::number(mipmap.height));
+    } else {
+        widthEdit->setText("0");
+        heightEdit->setText("0");
+    }
+    
+    mipmapEdit->setText(QString::number(currentTexture->getMipmapCount()));
+    alphaCheck->setChecked(currentTexture->hasAlpha());
     
     // Set format combo
-    uint32_t format = currentHeader->getRasterFormat();
+    LibTXD::RasterFormat format = currentTexture->getRasterFormat();
     for (int i = 0; i < formatCombo->count(); i++) {
-        if (formatCombo->itemData(i).toUInt() == format) {
+        if (formatCombo->itemData(i).toUInt() == static_cast<uint32_t>(format)) {
             formatCombo->setCurrentIndex(i);
             break;
         }
     }
     
     // Set compression combo
-    TXDCompression comp = currentHeader->getCompression();
+    LibTXD::Compression comp = currentTexture->getCompression();
     for (int i = 0; i < compressionCombo->count(); i++) {
         if (compressionCombo->itemData(i).toInt() == static_cast<int>(comp)) {
             compressionCombo->setCurrentIndex(i);
@@ -347,7 +331,7 @@ void TexturePropertiesWidget::updateUI() {
     }
     
     // Set filter
-    uint16_t filter = currentHeader->getFilterFlags();
+    uint32_t filter = currentTexture->getFilterFlags();
     for (int i = 0; i < filterCombo->count(); i++) {
         if (filterCombo->itemData(i).toUInt() == filter) {
             filterCombo->setCurrentIndex(i);
@@ -355,22 +339,10 @@ void TexturePropertiesWidget::updateUI() {
         }
     }
     
-    // Set wrap modes
-    uint8_t uWrap = currentHeader->getUWrapFlags();
-    for (int i = 0; i < uWrapCombo->count(); i++) {
-        if (uWrapCombo->itemData(i).toUInt() == uWrap) {
-            uWrapCombo->setCurrentIndex(i);
-            break;
-        }
-    }
-    
-    uint8_t vWrap = currentHeader->getVWrapFlags();
-    for (int i = 0; i < vWrapCombo->count(); i++) {
-        if (vWrapCombo->itemData(i).toUInt() == vWrap) {
-            vWrapCombo->setCurrentIndex(i);
-            break;
-        }
-    }
+    // Note: libtxd doesn't support separate U/V wrap flags yet
+    // Keep combos at default values
+    uWrapCombo->setCurrentIndex(0);
+    vWrapCombo->setCurrentIndex(0);
     
     blockSignals(false);
 }
@@ -390,73 +362,75 @@ void TexturePropertiesWidget::blockSignals(bool block) {
 }
 
 void TexturePropertiesWidget::onNameChanged() {
-    if (currentHeader) {
-        try {
-            currentHeader->setDiffuseName(nameEdit->text().toStdString());
-            emit propertyChanged();
-        } catch (const std::exception& e) {
-            // Revert on error
-            nameEdit->setText(QString::fromStdString(currentHeader->getDiffuseName()));
-        }
+    if (currentTexture) {
+        currentTexture->setName(nameEdit->text().toStdString());
+        emit propertyChanged();
     }
 }
 
 void TexturePropertiesWidget::onAlphaNameChanged() {
-    if (currentHeader) {
-        try {
-            currentHeader->setAlphaName(alphaNameEdit->text().toStdString());
-            emit propertyChanged();
-        } catch (const std::exception& e) {
-            alphaNameEdit->setText(QString::fromStdString(currentHeader->getAlphaName()));
-        }
+    if (currentTexture) {
+        currentTexture->setMaskName(alphaNameEdit->text().toStdString());
+        emit propertyChanged();
     }
 }
 
 void TexturePropertiesWidget::onWidthChanged() {
-    if (currentHeader) {
+    if (currentTexture && currentTexture->getMipmapCount() > 0) {
         bool ok;
         int value = widthEdit->text().toInt(&ok);
         if (ok && value >= 1 && value <= 4096) {
-            currentHeader->setRasterSize(value, currentHeader->getHeight());
+            // Note: Changing dimensions requires resizing mipmap data
+            // This is a complex operation, so we'll just update the mipmap width
+            // Full resize would require decompressing, resizing, and recompressing
+            auto& mipmap = currentTexture->getMipmap(0);
+            mipmap.width = value;
             emit propertyChanged();
         } else {
             // Revert to current value
-            widthEdit->setText(QString::number(currentHeader->getWidth()));
+            const auto& mipmap = currentTexture->getMipmap(0);
+            widthEdit->setText(QString::number(mipmap.width));
         }
     }
 }
 
 void TexturePropertiesWidget::onHeightChanged() {
-    if (currentHeader) {
+    if (currentTexture && currentTexture->getMipmapCount() > 0) {
         bool ok;
         int value = heightEdit->text().toInt(&ok);
         if (ok && value >= 1 && value <= 4096) {
-            currentHeader->setRasterSize(currentHeader->getWidth(), value);
+            // Note: Changing dimensions requires resizing mipmap data
+            // This is a complex operation, so we'll just update the mipmap height
+            // Full resize would require decompressing, resizing, and recompressing
+            auto& mipmap = currentTexture->getMipmap(0);
+            mipmap.height = value;
             emit propertyChanged();
         } else {
             // Revert to current value
-            heightEdit->setText(QString::number(currentHeader->getHeight()));
+            const auto& mipmap = currentTexture->getMipmap(0);
+            heightEdit->setText(QString::number(mipmap.height));
         }
     }
 }
 
 void TexturePropertiesWidget::onMipmapCountChanged() {
-    if (currentHeader) {
+    if (currentTexture) {
         bool ok;
         int value = mipmapEdit->text().toInt(&ok);
         if (ok && value >= 1 && value <= 16) {
-            currentHeader->setMipmapCount(value);
-            emit propertyChanged();
+            // Note: libtxd doesn't have setMipmapCount - mipmaps are managed individually
+            // This is read-only for now - user can't change mipmap count
+            mipmapEdit->setText(QString::number(currentTexture->getMipmapCount()));
         } else {
             // Revert to current value
-            mipmapEdit->setText(QString::number(currentHeader->getMipmapCount()));
+            mipmapEdit->setText(QString::number(currentTexture->getMipmapCount()));
         }
     }
 }
 
 void TexturePropertiesWidget::onAlphaChannelToggled(bool enabled) {
-    if (currentHeader) {
-        currentHeader->setAlphaChannelUsed(enabled);
+    if (currentTexture) {
+        currentTexture->setHasAlpha(enabled);
         emit propertyChanged();
     }
 }

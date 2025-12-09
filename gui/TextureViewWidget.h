@@ -16,7 +16,6 @@
 #include <QToolButton>
 #include <QSlider>
 #include <QLabel>
-#include "../core/TXDTextureHeader.h"
 
 class TextureViewWidget : public QWidget {
     Q_OBJECT

@@ -1,5 +1,5 @@
 #include "TextureListWidget.h"
-#include "../core/TXDConverter.h"
+#include "libtxd/txd_converter.h"
 #include <QPixmap>
 #include <QImage>
 #include <QString>
@@ -20,22 +20,21 @@ TextureListWidget::TextureListWidget(QWidget *parent)
     setItemDelegate(new TextureListItemDelegate(this));
 }
 
-QString TextureListWidget::formatTextureInfo(const TXDTextureHeader* header) const {
-    QString info = QString("Name: %1\nSize: %2x%3px\nHas alpha: %4\nCompression: %5")
-        .arg(QString::fromStdString(header->getDiffuseName()))
-        .arg(header->getWidth())
-        .arg(header->getHeight())
-        .arg(header->isAlphaChannelUsed() ? "Y" : "N");
+QString TextureListWidget::formatTextureInfo(const LibTXD::Texture* texture) const {
+    if (!texture || texture->getMipmapCount() == 0) {
+        return "Invalid texture";
+    }
     
+    const auto& mipmap = texture->getMipmap(0);
     QString compressionStr;
-    switch (header->getCompression()) {
-        case TXDCompression::NONE:
+    switch (texture->getCompression()) {
+        case LibTXD::Compression::NONE:
             compressionStr = "None";
             break;
-        case TXDCompression::DXT1:
+        case LibTXD::Compression::DXT1:
             compressionStr = "DXT1";
             break;
-        case TXDCompression::DXT3:
+        case LibTXD::Compression::DXT3:
             compressionStr = "DXT3";
             break;
         default:
@@ -43,31 +42,30 @@ QString TextureListWidget::formatTextureInfo(const TXDTextureHeader* header) con
             break;
     }
     
-    info = QString("Name: %1\nSize: %2x%3px\nHas alpha: %4\nCompression: %5")
-        .arg(QString::fromStdString(header->getDiffuseName()))
-        .arg(header->getWidth())
-        .arg(header->getHeight())
-        .arg(header->isAlphaChannelUsed() ? "Y" : "N")
+    QString info = QString("Name: %1\nSize: %2x%3px\nHas alpha: %4\nCompression: %5")
+        .arg(QString::fromStdString(texture->getName()))
+        .arg(mipmap.width)
+        .arg(mipmap.height)
+        .arg(texture->hasAlpha() ? "Y" : "N")
         .arg(compressionStr);
     
     return info;
 }
 
-QPixmap TextureListWidget::createThumbnail(const TXDTextureHeader* header, const uint8_t* data) const {
-    if (!header || !data) {
+QPixmap TextureListWidget::createThumbnail(const LibTXD::Texture* texture, const uint8_t* data) const {
+    if (!texture || !data || texture->getMipmapCount() == 0) {
         return QPixmap();
     }
     
     // Convert to RGBA8
-    auto rgbaData = TXDConverter::convertToRGBA8(header, data, 0);
+    auto rgbaData = LibTXD::TextureConverter::convertToRGBA8(*texture, 0);
     if (!rgbaData) {
         return QPixmap();
     }
     
+    const auto& mipmap = texture->getMipmap(0);
     // Create QImage
-    int width = header->getWidth();
-    int height = header->getHeight();
-    QImage image(rgbaData.get(), width, height, QImage::Format_RGBA8888);
+    QImage image(rgbaData.get(), mipmap.width, mipmap.height, QImage::Format_RGBA8888);
     QImage imageCopy = image.copy();
     
     // Create thumbnail (32x32 max)
@@ -79,17 +77,17 @@ QPixmap TextureListWidget::createThumbnail(const TXDTextureHeader* header, const
     return pixmap;
 }
 
-void TextureListWidget::addTexture(const TXDTextureHeader* header, const uint8_t* data, int index) {
-    if (!header) {
+void TextureListWidget::addTexture(const LibTXD::Texture* texture, const uint8_t* data, int index) {
+    if (!texture) {
         return;
     }
     
-    QString info = formatTextureInfo(header);
+    QString info = formatTextureInfo(texture);
     
     QListWidgetItem* item = new QListWidgetItem(info, this);
     
     // Create thumbnail
-    QPixmap thumbnail = createThumbnail(header, data);
+    QPixmap thumbnail = createThumbnail(texture, data);
     if (!thumbnail.isNull()) {
         item->setIcon(QIcon(thumbnail));
     }
@@ -103,7 +101,7 @@ void TextureListWidget::addTexture(const TXDTextureHeader* header, const uint8_t
     addItem(item);
 }
 
-void TextureListWidget::updateTexture(const TXDTextureHeader* header, const uint8_t* data, int index) {
+void TextureListWidget::updateTexture(const LibTXD::Texture* texture, const uint8_t* data, int index) {
     QListWidgetItem* item = itemAt(0, 0); // This is a simplified approach
     // In a real implementation, we'd find the item by index
     for (int i = 0; i < count(); i++) {
@@ -114,18 +112,18 @@ void TextureListWidget::updateTexture(const TXDTextureHeader* header, const uint
         }
     }
     
-    if (item && header) {
-        QString name = QString::fromStdString(header->getDiffuseName());
+    if (item && texture) {
+        QString name = QString::fromStdString(texture->getName());
         if (name.isEmpty()) {
             name = QString("Texture %1").arg(index);
         }
         
-        QString info = formatTextureInfo(header);
+        QString info = formatTextureInfo(texture);
         QString displayText = QString("%1\n%2").arg(name).arg(info);
         
         item->setText(displayText);
         
-        QPixmap thumbnail = createThumbnail(header, data);
+        QPixmap thumbnail = createThumbnail(texture, data);
         if (!thumbnail.isNull()) {
             item->setIcon(QIcon(thumbnail));
         }

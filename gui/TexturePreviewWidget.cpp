@@ -1,6 +1,6 @@
 #include "TexturePreviewWidget.h"
 #include "TextureViewWidget.h"
-#include "../core/TXDConverter.h"
+#include "libtxd/txd_converter.h"
 #include <QPixmap>
 #include <QImage>
 #include <QString>
@@ -32,8 +32,8 @@ TexturePreviewWidget::TexturePreviewWidget(QWidget *parent)
     setStyleSheet("TexturePreviewWidget { background-color: #1a1a1a; }");
 }
 
-void TexturePreviewWidget::setTexture(const TXDTextureHeader* header, const uint8_t* data, int originalWidth, int originalHeight) {
-    if (!header || !data) {
+void TexturePreviewWidget::setTexture(const LibTXD::Texture* texture, const uint8_t* data, int originalWidth, int originalHeight) {
+    if (!texture || !data) {
         clear();
         return;
     }
@@ -62,7 +62,7 @@ void TexturePreviewWidget::setTexture(const TXDTextureHeader* header, const uint
     tabWidget->show();
     
     // Check if texture has alpha channel
-    bool hasAlpha = header->isAlphaChannelUsed();
+    bool hasAlpha = texture->hasAlpha();
     
     // Add or remove alpha/mixed tabs based on alpha channel
     if (hasAlpha && !alphaTabsVisible) {
@@ -86,14 +86,21 @@ void TexturePreviewWidget::setTexture(const TXDTextureHeader* header, const uint
         mixedView->resetHasBeenShown();
     }
     
-    // Use original dimensions if provided, otherwise use header dimensions
-    int origW = (originalWidth > 0) ? originalWidth : header->getWidth();
-    int origH = (originalHeight > 0) ? originalHeight : header->getHeight();
+    // Use original dimensions if provided, otherwise use mipmap dimensions
+    int origW = originalWidth;
+    int origH = originalHeight;
+    if (origW <= 0 || origH <= 0) {
+        if (texture->getMipmapCount() > 0) {
+            const auto& mipmap = texture->getMipmap(0);
+            origW = mipmap.width;
+            origH = mipmap.height;
+        }
+    }
     
-    updateImageTab(header, data, origW, origH);
+    updateImageTab(texture, data, origW, origH);
     if (hasAlpha) {
-        updateAlphaTab(header, data, origW, origH);
-        updateMixedTab(header, data, origW, origH);
+        updateAlphaTab(texture, data, origW, origH);
+        updateMixedTab(texture, data, origW, origH);
     }
     
     // Reset current tab to 100% immediately
@@ -107,54 +114,48 @@ void TexturePreviewWidget::setTexture(const TXDTextureHeader* header, const uint
     }
 }
 
-void TexturePreviewWidget::updateImageTab(const TXDTextureHeader* header, const uint8_t* data, int originalWidth, int originalHeight) {
-    QPixmap pixmap = createImagePixmap(header, data, false, false, originalWidth, originalHeight);
+void TexturePreviewWidget::updateImageTab(const LibTXD::Texture* texture, const uint8_t* data, int originalWidth, int originalHeight) {
+    QPixmap pixmap = createImagePixmap(texture, data, false, false, originalWidth, originalHeight);
     imageView->setPixmap(pixmap);
 }
 
-void TexturePreviewWidget::updateAlphaTab(const TXDTextureHeader* header, const uint8_t* data, int originalWidth, int originalHeight) {
-    QPixmap pixmap = createImagePixmap(header, data, true, false, originalWidth, originalHeight);
+void TexturePreviewWidget::updateAlphaTab(const LibTXD::Texture* texture, const uint8_t* data, int originalWidth, int originalHeight) {
+    QPixmap pixmap = createImagePixmap(texture, data, true, false, originalWidth, originalHeight);
     alphaView->setPixmap(pixmap);
 }
 
-void TexturePreviewWidget::updateMixedTab(const TXDTextureHeader* header, const uint8_t* data, int originalWidth, int originalHeight) {
-    QPixmap pixmap = createImagePixmap(header, data, false, true, originalWidth, originalHeight);
+void TexturePreviewWidget::updateMixedTab(const LibTXD::Texture* texture, const uint8_t* data, int originalWidth, int originalHeight) {
+    QPixmap pixmap = createImagePixmap(texture, data, false, true, originalWidth, originalHeight);
     mixedView->setPixmap(pixmap);
 }
 
-QPixmap TexturePreviewWidget::createImagePixmap(const TXDTextureHeader* header, const uint8_t* data, bool showAlpha, bool mixed, int targetWidth, int targetHeight) {
-    if (!header || !data) {
+QPixmap TexturePreviewWidget::createImagePixmap(const LibTXD::Texture* texture, const uint8_t* data, bool showAlpha, bool mixed, int targetWidth, int targetHeight) {
+    if (!texture || !data) {
         return QPixmap();
     }
     
-    // Convert texture to RGBA8 using original dimensions from data
-    // We need to create a temporary header with original dimensions for conversion
-    TXDTextureHeader tempHeader(*header);
-    if (targetWidth > 0 && targetHeight > 0) {
-        // Use original dimensions for data conversion
-        // The targetWidth/targetHeight are the original data dimensions
-        tempHeader.setRasterSize(targetWidth, targetHeight);
-    }
-    
-    auto rgbaData = TXDConverter::convertToRGBA8(&tempHeader, data, 0);
+    // Convert texture to RGBA8
+    auto rgbaData = LibTXD::TextureConverter::convertToRGBA8(*texture, 0);
     if (!rgbaData) {
         return QPixmap();
     }
     
-    // Use original dimensions for image creation
-    int dataWidth = (targetWidth > 0) ? targetWidth : header->getWidth();
-    int dataHeight = (targetHeight > 0) ? targetHeight : header->getHeight();
+    // Use dimensions from mipmap
+    int dataWidth = targetWidth;
+    int dataHeight = targetHeight;
+    if (dataWidth <= 0 || dataHeight <= 0) {
+        if (texture->getMipmapCount() > 0) {
+            const auto& mipmap = texture->getMipmap(0);
+            dataWidth = mipmap.width;
+            dataHeight = mipmap.height;
+        } else {
+            return QPixmap();
+        }
+    }
     
-    // Create QImage from RGBA data (using original data dimensions)
+    // Create QImage from RGBA data
     QImage image(rgbaData.get(), dataWidth, dataHeight, QImage::Format_RGBA8888);
     QImage imageCopy = image.copy();
-    
-    // Scale to target dimensions if they differ from data dimensions
-    int targetW = header->getWidth();
-    int targetH = header->getHeight();
-    if (targetW != dataWidth || targetH != dataHeight) {
-        imageCopy = imageCopy.scaled(targetW, targetH, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    }
     
     // Get final dimensions after scaling
     int finalWidth = imageCopy.width();

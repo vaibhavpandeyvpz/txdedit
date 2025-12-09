@@ -6,14 +6,14 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include "../core/TXDTypes.h"
+#include "libtxd/txd_types.h"
 
 class GameVersionDialog : public QDialog {
     Q_OBJECT
 
 public:
     explicit GameVersionDialog(QWidget *parent = nullptr);
-    GTAGameVersion getSelectedVersion() const { return selectedVersion; }
+    LibTXD::GameVersion getSelectedVersion() const { return selectedVersion; }
 
 private slots:
     void onGTA3Selected();
@@ -21,7 +21,7 @@ private slots:
     void onGTASASelected();
 
 private:
-    GTAGameVersion selectedVersion = GTAGameVersion::UNKNOWN;
+    LibTXD::GameVersion selectedVersion = LibTXD::GameVersion::UNKNOWN;
     QPushButton* gta3Button;
     QPushButton* gtavcButton;
     QPushButton* gtasaButton;

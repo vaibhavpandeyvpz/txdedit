@@ -7,7 +7,8 @@
 #include <QVBoxLayout>
 #include <QTabWidget>
 #include <QHBoxLayout>
-#include "../core/TXDTextureHeader.h"
+#include "libtxd/txd_texture.h"
+#include "libtxd/txd_converter.h"
 #include "TextureViewWidget.h"
 
 class TexturePreviewWidget : public QWidget {
@@ -15,17 +16,17 @@ class TexturePreviewWidget : public QWidget {
 
 public:
     explicit TexturePreviewWidget(QWidget *parent = nullptr);
-    void setTexture(const TXDTextureHeader* header, const uint8_t* data, int originalWidth = 0, int originalHeight = 0);
+    void setTexture(const LibTXD::Texture* texture, const uint8_t* data, int originalWidth = 0, int originalHeight = 0);
     void clear();
 
 private slots:
     void onTabChanged(int index);
 
 private:
-    void updateImageTab(const TXDTextureHeader* header, const uint8_t* data, int originalWidth = 0, int originalHeight = 0);
-    void updateAlphaTab(const TXDTextureHeader* header, const uint8_t* data, int originalWidth = 0, int originalHeight = 0);
-    void updateMixedTab(const TXDTextureHeader* header, const uint8_t* data, int originalWidth = 0, int originalHeight = 0);
-    QPixmap createImagePixmap(const TXDTextureHeader* header, const uint8_t* data, bool showAlpha = false, bool mixed = false, int originalWidth = 0, int originalHeight = 0);
+    void updateImageTab(const LibTXD::Texture* texture, const uint8_t* data, int originalWidth = 0, int originalHeight = 0);
+    void updateAlphaTab(const LibTXD::Texture* texture, const uint8_t* data, int originalWidth = 0, int originalHeight = 0);
+    void updateMixedTab(const LibTXD::Texture* texture, const uint8_t* data, int originalWidth = 0, int originalHeight = 0);
+    QPixmap createImagePixmap(const LibTXD::Texture* texture, const uint8_t* data, bool showAlpha = false, bool mixed = false, int originalWidth = 0, int originalHeight = 0);
     
     QVBoxLayout* mainLayout;
     QTabWidget* tabWidget;

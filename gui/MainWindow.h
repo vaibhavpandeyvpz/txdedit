@@ -16,7 +16,8 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <memory>
-#include "../core/TXDArchive.h"
+#include "libtxd/txd_dictionary.h"
+#include "libtxd/txd_converter.h"
 
 class TexturePreviewWidget;
 class TexturePropertiesWidget;
@@ -70,7 +71,7 @@ private:
     bool saveTXD(const QString& filepath);
     QString getIconPath(const QString& iconName) const;
     
-    std::unique_ptr<TXDArchive> archive;
+    std::unique_ptr<LibTXD::TextureDictionary> archive;
     QString currentFile;
     int selectedTextureIndex;
     

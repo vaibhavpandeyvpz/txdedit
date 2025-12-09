@@ -156,17 +156,17 @@ QString GameVersionDialog::getLogoPath(const QString& logoName) const {
 }
 
 void GameVersionDialog::onGTA3Selected() {
-    selectedVersion = GTAGameVersion::GTA3;
+    selectedVersion = LibTXD::GameVersion::GTA3_4; // Use GTA3_4 as default
     accept();
 }
 
 void GameVersionDialog::onGTAVCSelected() {
-    selectedVersion = GTAGameVersion::GTAVC;
+    selectedVersion = LibTXD::GameVersion::VC_PC;
     accept();
 }
 
 void GameVersionDialog::onGTASASelected() {
-    selectedVersion = GTAGameVersion::GTASA;
+    selectedVersion = LibTXD::GameVersion::SA;
     accept();
 }
 

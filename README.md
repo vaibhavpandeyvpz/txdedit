@@ -29,11 +29,11 @@
   - Combined view (diffuse with alpha applied)
 - **📝 Edit Texture Properties**:
   - Texture names (diffuse and alpha)
-  - Dimensions (width and height)
-  - Mipmap count
+  - Dimensions (width and height) - Note: Changing dimensions updates metadata but doesn't automatically resize texture data
+  - Mipmap count (read-only, displayed for information)
   - Compression format (DXT1, DXT3, uncompressed, etc.)
   - Raster format
-  - Filter and wrapping flags
+  - Filter flags
   - Alpha channel usage
 
 ### Advanced Features
@@ -87,6 +87,43 @@ View all releases and download previous versions: [Releases](https://github.com/
 - **C++17** compatible compiler (GCC, Clang, or MSVC)
 - **Qt 5** or **Qt 6** (Core and Widgets modules)
 
+### Prerequisites
+
+#### macOS (using Homebrew)
+
+```bash
+# Install CMake
+brew install cmake
+
+# Install Qt6 (recommended) or Qt5
+brew install qt@6
+# OR
+brew install qt@5
+```
+
+After installing Qt via Homebrew, you may need to set the CMAKE_PREFIX_PATH:
+
+```bash
+export CMAKE_PREFIX_PATH=$(brew --prefix qt@6)
+# OR for Qt5:
+# export CMAKE_PREFIX_PATH=$(brew --prefix qt@5)
+```
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt-get update
+sudo apt-get install cmake qt6-base-dev qt6-base-dev-tools
+# OR for Qt5:
+# sudo apt-get install cmake qt5-default qtbase5-dev
+```
+
+#### Windows
+
+1. Install CMake from https://cmake.org/download/
+2. Install Qt from https://www.qt.io/download
+3. Make sure Qt's bin directory is in your PATH
+
 ### Building
 
 #### Linux & macOS
@@ -104,7 +141,7 @@ make
 git submodule update --init --recursive
 ```
 
-The executable will be in `build/bin/txdedit`.
+The executable will be in `build/bin/txdedit` (or `build/bin/txdedit.app/Contents/MacOS/txdedit` on macOS).
 
 #### Windows (Visual Studio)
 
@@ -123,11 +160,21 @@ git submodule update --init --recursive
 
 The executable will be in `build/bin/Release/txdedit.exe`.
 
-#### Installing Qt
+### Troubleshooting
 
-- **macOS**: `brew install qt@6` or download from [qt.io](https://www.qt.io/download)
-- **Linux**: `sudo apt-get install qt6-base-dev` (Ubuntu/Debian) or use your distribution's package manager
-- **Windows**: Download and install from [qt.io](https://www.qt.io/download)
+#### CMake can't find Qt
+
+If CMake can't find Qt, specify the path explicitly:
+
+```bash
+cmake .. -DCMAKE_PREFIX_PATH=/path/to/qt
+```
+
+On macOS with Homebrew:
+
+```bash
+cmake .. -DCMAKE_PREFIX_PATH=$(brew --prefix qt@6)
+```
 
 ### Pre-built Binaries
 
@@ -173,15 +220,14 @@ If you prefer not to build from source, you can download pre-built binaries from
 
 ### Compression Formats
 
-- ✅ Uncompressed (RGBA8, RGB8, and various bit depths)
+- ✅ Uncompressed (B8G8R8A8, B8G8R8, and various bit depths)
 - ✅ DXT1 (BC1) - Full support for compression and decompression
 - ✅ DXT3 (BC3) - Full support for compression and decompression
-- ✅ PAL4/PAL8 - Palette-based textures with automatic palette generation
+- ✅ PAL4/PAL8 - Palette-based textures with automatic palette generation using libimagequant
 
 ### Raster Formats
 
-- ✅ R8G8B8A8
-- ✅ B8G8R8A8
+- ✅ B8G8R8A8 (primary RGBA format)
 - ✅ B8G8R8
 - ✅ R5G6B5
 - ✅ A1R5G5B5
@@ -202,11 +248,11 @@ The application is designed with a clean separation between core logic and GUI:
 
 ```
 txdedit/
-├── core/           # Core TXD library (no GUI dependencies)
-│   ├── TXDArchive.h/cpp          # Main archive reading/writing
-│   ├── TXDTextureHeader.h/cpp    # Texture metadata
-│   ├── TXDConverter.h/cpp        # Format conversion
-│   └── TXDTypes.h               # Type definitions
+├── libtxd/         # Core TXD library (no GUI dependencies)
+│   ├── txd_dictionary.h/cpp     # Main TXD file reading/writing
+│   ├── txd_texture.h/cpp        # Texture representation
+│   ├── txd_converter.h/cpp      # Format conversion utilities
+│   └── txd_types.h/cpp          # Type definitions and enums
 │
 ├── gui/            # Qt-based GUI application
 │   ├── MainWindow.h/cpp         # Main application window
@@ -226,22 +272,111 @@ txdedit/
 
 ### Key Design Principles
 
-- **Separation of Concerns**: Core library is independent of GUI framework
+- **Separation of Concerns**: Core library (libtxd) is independent of GUI framework
 - **Modern C++**: Uses C++17 features, smart pointers, and RAII
 - **Cross-platform**: Works on Windows, macOS, and Linux
 - **Extensible**: Easy to add new formats and features
+
+## 📚 libtxd Library
+
+The project includes **libtxd**, a modern C++17 library for reading and writing RenderWare Texture Dictionary (TXD) files used in GTA games. The library provides a clean, maintainable API for working with TXD files.
+
+### Library Features
+
+- Read TXD files from GTA3, GTAVC, and GTASA
+- Write TXD files
+- Support for D3D8 and D3D9 platforms
+- Support for compressed (DXT1, DXT3) and uncompressed textures
+- Support for paletted textures (PAL4, PAL8)
+- Mipmap support
+- DXT compression/decompression using libsquish
+- Palette generation and quantization using libimagequant
+- Texture format conversion utilities
+- Modern C++17 API with RAII principles
+
+### API Usage
+
+#### TextureDictionary
+
+The main class for working with TXD files.
+
+```cpp
+#include "libtxd/txd_dictionary.h"
+
+LibTXD::TextureDictionary dict;
+
+// Load from file
+dict.load("path/to/file.txd");
+
+// Access textures
+size_t count = dict.getTextureCount();
+const LibTXD::Texture* tex = dict.getTexture(0);
+const LibTXD::Texture* found = dict.findTexture("texture_name");
+
+// Save to file
+dict.save("path/to/output.txd");
+```
+
+#### Texture
+
+Represents a single texture in a TXD file.
+
+```cpp
+const LibTXD::Texture* tex = dict.getTexture(0);
+
+std::string name = tex->getName();
+std::string maskName = tex->getMaskName();
+uint32_t width = tex->getMipmap(0).width;
+uint32_t height = tex->getMipmap(0).height;
+bool hasAlpha = tex->hasAlpha();
+LibTXD::Compression comp = tex->getCompression();
+```
+
+#### TextureConverter
+
+Utility class for texture conversion operations.
+
+```cpp
+#include "libtxd/txd_converter.h"
+
+// Decompress DXT compressed texture
+auto rgba = LibTXD::TextureConverter::decompressDXT(
+    compressedData, width, height, LibTXD::Compression::DXT1
+);
+
+// Compress RGBA8 to DXT
+auto compressed = LibTXD::TextureConverter::compressToDXT(
+    rgbaData, width, height, LibTXD::Compression::DXT1, 1.0f
+);
+
+// Generate palette from RGBA8 image
+std::vector<uint8_t> palette;
+std::vector<uint8_t> indexedData;
+LibTXD::TextureConverter::generatePalette(
+    rgbaData, width, height, 256, palette, indexedData
+);
+
+// Convert texture to RGBA8
+auto rgba = LibTXD::TextureConverter::convertToRGBA8(*texture, 0);
+```
+
+### Library Limitations
+
+- PS2 and Xbox platform support is not yet fully implemented
+- Some advanced features are not yet supported
 
 ## 🛠️ Development
 
 ### Project Structure
 
-- **Core Library** (`core/`): Handles all TXD file I/O and format conversion
+- **libtxd Library** (`libtxd/`): Core TXD file I/O and format conversion library
 - **GUI Application** (`gui/`): Qt-based user interface
 - **Vendor Libraries** (`vendor/`): Third-party compression libraries
+- **Tests** (`tests/`): Unit tests for libtxd library
 
 ### Building from Source
 
-See the [BUILD.md](BUILD.md) file for detailed build instructions and troubleshooting.
+See the [Quick Start](#-quick-start) section above for detailed build instructions and troubleshooting.
 
 ## 🤝 Contributing
 
@@ -280,8 +415,19 @@ This project uses the following open-source libraries:
 
 ## ⚠️ Known Limitations
 
+### Platform Support
 - PS2 TXD format is not supported
+- Xbox platform support is not yet fully implemented
 - ATC (AMD Texture Compression) formats are not supported
+
+### Texture Editing Limitations
+- **Mipmap count**: Displayed but not editable (mipmaps are managed individually)
+- **Dimension changes**: Changing width/height updates metadata but doesn't automatically resize texture data. Use "Replace diffuse" or "Replace alpha" to update texture data with new dimensions
+- **Separate U/V wrap flags**: Not supported in the current library implementation (only filter flags are available)
+- **Automatic texture resizing on save**: Removed - textures are saved as-is with their current mipmap data
+
+### Format Support
+- R8G8B8A8 format is not available (B8G8R8A8 is used instead)
 - Some advanced texture conversion features may be simplified
 
 ---
