@@ -18,6 +18,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Extract version from tag
+        if: github.event_name == 'release'
+        id: get_version
+        run: |
+          $tag = "${{ github.event.release.tag_name }}"
+          # Remove 'v' prefix if present (e.g., v1.2.3 -> 1.2.3)
+          $version = $tag -replace '^v', ''
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "Extracted version: $version"
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -70,9 +80,14 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -B build -G "Visual Studio 17 2022" -A x64
+          $cmakeArgs = "-B build -G `"Visual Studio 17 2022`" -A x64"
+          if ($env:VERSION) {
+            $cmakeArgs += " -DPROJECT_VERSION=$env:VERSION"
+          }
+          cmake $cmakeArgs
         env:
           CMAKE_PREFIX_PATH: ${{ env.QT_DIR }}
+          VERSION: ${{ env.VERSION }}
 
       - name: Build
         run: |
@@ -171,6 +186,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Extract version from tag
+        if: github.event_name == 'release'
+        id: get_version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          # Remove 'v' prefix if present (e.g., v1.2.3 -> 1.2.3)
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Extracted version: $VERSION"
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -212,7 +237,11 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.QT_DIR }}"
+          CMAKE_ARGS="-B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=\"${{ env.QT_DIR }}\""
+          if [ -n "${{ env.VERSION }}" ]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DPROJECT_VERSION=${{ env.VERSION }}"
+          fi
+          cmake $CMAKE_ARGS
 
       - name: Build
         run: |
@@ -372,6 +401,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Extract version from tag
+        if: github.event_name == 'release'
+        id: get_version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          # Remove 'v' prefix if present (e.g., v1.2.3 -> 1.2.3)
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Extracted version: $VERSION"
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -454,7 +493,11 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.QT_DIR }}"
+          CMAKE_ARGS="-B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=\"${{ env.QT_DIR }}\""
+          if [ -n "${{ env.VERSION }}" ]; then
+            CMAKE_ARGS="$CMAKE_ARGS -DPROJECT_VERSION=${{ env.VERSION }}"
+          fi
+          cmake $CMAKE_ARGS
 
       - name: Build
         run: |

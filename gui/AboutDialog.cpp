@@ -1,4 +1,5 @@
 #include "AboutDialog.h"
+#include "gui/version.h"
 #include <QApplication>
 #include <QDir>
 #include <QFile>
@@ -41,7 +42,7 @@ void AboutDialog::setupUI() {
     mainLayout->addWidget(titleLabel);
     
     // Version
-    QLabel* versionLabel = new QLabel("Version 1.0.0", this);
+    QLabel* versionLabel = new QLabel(QString("Version %1").arg(TXDEDIT_VERSION_STRING), this);
     versionLabel->setStyleSheet("QLabel { font-size: 12px; color: #ffffff; }");
     versionLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(versionLabel);

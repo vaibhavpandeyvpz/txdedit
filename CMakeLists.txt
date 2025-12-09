@@ -73,6 +73,13 @@ target_include_directories(libtxd PUBLIC
 
 target_link_libraries(libtxd PUBLIC squish libimagequant)
 
+# Generate version header
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/gui/version.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/gui/version.h
+    @ONLY
+)
+
 # GUI application
 set(GUI_SOURCES
     gui/main.cpp
@@ -111,6 +118,11 @@ target_link_libraries(txdedit
     libtxd
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::Widgets
+)
+
+# Add version header include directory
+target_include_directories(txdedit PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 # Installation
