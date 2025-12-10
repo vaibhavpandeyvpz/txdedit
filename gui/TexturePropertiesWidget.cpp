@@ -3,7 +3,6 @@
 #include "TXDModel.h"
 #include <QFormLayout>
 #include <QLabel>
-#include <QIntValidator>
 #include <QFontMetrics>
 #include <cstring>
 
@@ -22,102 +21,65 @@ TexturePropertiesWidget::TexturePropertiesWidget(QWidget *parent)
     contentLayout->setSpacing(8);
     contentLayout->setAlignment(Qt::AlignTop);
     
-    // Basic properties
-    basicGroup = new QGroupBox("Basic properties", contentWidget);
-    basicGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    QFormLayout* basicLayout = new QFormLayout(basicGroup);
-    basicLayout->setSpacing(8);
-    basicLayout->setLabelAlignment(Qt::AlignRight);
-    basicLayout->setContentsMargins(10, 15, 10, 10);
-    basicLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    // Properties (merged basic + format)
+    propertiesGroup = new QGroupBox("Properties", contentWidget);
+    propertiesGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    QFormLayout* propsLayout = new QFormLayout(propertiesGroup);
+    propsLayout->setSpacing(8);
+    propsLayout->setLabelAlignment(Qt::AlignRight);
+    propsLayout->setContentsMargins(10, 15, 10, 10);
+    propsLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     
     nameEdit = new QLineEdit(contentWidget);
     connect(nameEdit, &QLineEdit::textChanged, this, &TexturePropertiesWidget::onNameChanged);
-    basicLayout->addRow("Diffuse name:", nameEdit);
+    propsLayout->addRow("Diffuse name:", nameEdit);
     
     alphaNameEdit = new QLineEdit(contentWidget);
     connect(alphaNameEdit, &QLineEdit::textChanged, this, &TexturePropertiesWidget::onAlphaNameChanged);
-    basicLayout->addRow("Alpha name:", alphaNameEdit);
+    propsLayout->addRow("Alpha name:", alphaNameEdit);
     
     // Width label (read-only: dimensions come from texture data)
     widthLabel = new QLabel("256", contentWidget);
-    basicLayout->addRow("Width:", widthLabel);
+    propsLayout->addRow("Width:", widthLabel);
     
     // Height label (read-only: dimensions come from texture data)
     heightLabel = new QLabel("256", contentWidget);
-    basicLayout->addRow("Height:", heightLabel);
+    propsLayout->addRow("Height:", heightLabel);
     
-    // Mipmap input field with number validation
-    mipmapEdit = new QLineEdit(contentWidget);
-    mipmapEdit->setValidator(new QIntValidator(1, 16, mipmapEdit));
-    mipmapEdit->setText("1");
-    connect(mipmapEdit, &QLineEdit::editingFinished, 
-            this, &TexturePropertiesWidget::onMipmapCountChanged);
-    basicLayout->addRow("Mipmaps:", mipmapEdit);
+    // Mipmap label (read-only: mipmaps are managed internally)
+    mipmapLabel = new QLabel("1", contentWidget);
+    propsLayout->addRow("Mipmaps:", mipmapLabel);
     
-    alphaCheck = new CheckBox("", contentWidget);
-    connect(alphaCheck, &QCheckBox::toggled, this, &TexturePropertiesWidget::onAlphaChannelToggled);
-    basicLayout->addRow("Has alpha:", alphaCheck);
-    
-    contentLayout->addWidget(basicGroup);
-    
-    // Format properties
-    formatGroup = new QGroupBox("Format", contentWidget);
-    formatGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    QFormLayout* formatLayout = new QFormLayout(formatGroup);
-    formatLayout->setSpacing(8);
-    formatLayout->setLabelAlignment(Qt::AlignRight);
-    formatLayout->setContentsMargins(10, 15, 10, 10);
-    formatLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
-    
-    // Format label for existing textures (read-only)
+    // Format label (read-only)
     formatLabel = new QLabel("", contentWidget);
-    formatLayout->addRow("Raster format:", formatLabel);
+    propsLayout->addRow("Raster format:", formatLabel);
     
-    // Format combo for new textures (editable, though auto-set based on alpha)
+    // Format combo (hidden, kept for compatibility)
     formatCombo = new QComboBox(contentWidget);
     QListView* formatView = new QListView();
     formatView->setSpacing(0);
     formatView->setUniformItemSizes(true);
     formatCombo->setView(formatView);
     formatCombo->setEditable(false);
-    // Note: libtxd uses B8G8R8A8, not R8G8B8A8
     formatCombo->addItem("B8G8R8A8", static_cast<uint32_t>(LibTXD::RasterFormat::B8G8R8A8));
     formatCombo->addItem("B8G8R8", static_cast<uint32_t>(LibTXD::RasterFormat::B8G8R8));
     formatCombo->addItem("R5G6B5", static_cast<uint32_t>(LibTXD::RasterFormat::R5G6B5));
     formatCombo->addItem("A1R5G5B5", static_cast<uint32_t>(LibTXD::RasterFormat::A1R5G5B5));
     formatCombo->addItem("R4G4B4A4", static_cast<uint32_t>(LibTXD::RasterFormat::R4G4B4A4));
     formatCombo->addItem("LUM8", static_cast<uint32_t>(LibTXD::RasterFormat::LUM8));
-    // Calculate width based on longest item text
-    QFontMetrics fm(formatCombo->font());
-    int maxWidth = 0;
-    for (int i = 0; i < formatCombo->count(); i++) {
-        int width = fm.horizontalAdvance(formatCombo->itemText(i));
-        if (width > maxWidth) maxWidth = width;
-    }
-    formatCombo->view()->setMinimumWidth(maxWidth + 40); // Add padding for borders and scrollbar
-    formatCombo->hide(); // Hidden by default, shown only for new textures
+    formatCombo->hide(); // Always hidden - format is auto-determined
+    
+    alphaCheck = new CheckBox("", contentWidget);
+    connect(alphaCheck, &QCheckBox::toggled, this, &TexturePropertiesWidget::onAlphaChannelToggled);
+    propsLayout->addRow("Use alpha:", alphaCheck);
     
     compressionCheck = new CheckBox("", contentWidget);
-    formatLayout->addRow("Compression:", compressionCheck);
+    propsLayout->addRow("Use compression:", compressionCheck);
     
-    // Connect format/compression changes
-    // Note: Format changes are only allowed for new textures (added by user)
-    // Existing textures keep their original format
-    connect(formatCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), [this]() {
-        if (!this || !currentEntry) {
-            return; // Widget or entry is being destroyed
-        }
-        if (currentEntry->isNew) {
-            // Format changes for new textures could be implemented here if needed
-            // For now, format is set automatically based on alpha when texture is added
-            // Don't emit propertyChanged for format changes
-        }
-    });
-    
+    // Connect compression changes
     connect(compressionCheck, &QCheckBox::toggled, this, &TexturePropertiesWidget::onCompressionToggled);
     
-    contentLayout->addWidget(formatGroup);
+    contentLayout->addWidget(propertiesGroup);
     
     // Flags
     flagsGroup = new QGroupBox("Flags", contentWidget);
@@ -227,8 +189,7 @@ void TexturePropertiesWidget::setTexture(TXDFileEntry* entry) {
     currentEntry = entry;
     if (entry) {
         // Show all groups when texture is set
-        basicGroup->show();
-        formatGroup->show();
+        propertiesGroup->show();
         flagsGroup->show();
     }
     updateUI();
@@ -242,7 +203,7 @@ void TexturePropertiesWidget::clear() {
     alphaNameEdit->clear();
     widthLabel->setText("256");
     heightLabel->setText("256");
-    mipmapEdit->setText("1");
+    mipmapLabel->setText("1");
     alphaCheck->setChecked(false);
     formatLabel->setText("");
     // Block signals before setting index to avoid triggering handlers during destruction
@@ -256,13 +217,11 @@ void TexturePropertiesWidget::clear() {
     uWrapCombo->setCurrentIndex(0);
     vWrapCombo->setCurrentIndex(0);
     
-    basicGroup->setEnabled(false);
-    formatGroup->setEnabled(false);
+    propertiesGroup->setEnabled(false);
     flagsGroup->setEnabled(false);
     
     // Hide all groups when no texture is selected
-    basicGroup->hide();
-    formatGroup->hide();
+    propertiesGroup->hide();
     flagsGroup->hide();
     
     blockSignals(false);
@@ -277,12 +236,10 @@ void TexturePropertiesWidget::updateUI() {
     blockSignals(true);
     
     // Ensure groups are visible when updating
-    basicGroup->show();
-    formatGroup->show();
+    propertiesGroup->show();
     flagsGroup->show();
     
-    basicGroup->setEnabled(true);
-    formatGroup->setEnabled(true);
+    propertiesGroup->setEnabled(true);
     flagsGroup->setEnabled(true);
     
     nameEdit->setText(currentEntry->name);
@@ -292,7 +249,7 @@ void TexturePropertiesWidget::updateUI() {
     widthLabel->setText(QString::number(currentEntry->width));
     heightLabel->setText(QString::number(currentEntry->height));
     
-    mipmapEdit->setText(QString::number(currentEntry->mipmapCount));
+    mipmapLabel->setText(QString::number(currentEntry->mipmapCount));
     alphaCheck->setChecked(currentEntry->hasAlpha);
     
     // Set format display
@@ -351,7 +308,6 @@ void TexturePropertiesWidget::updateUI() {
 void TexturePropertiesWidget::blockSignals(bool block) {
     nameEdit->blockSignals(block);
     alphaNameEdit->blockSignals(block);
-    mipmapEdit->blockSignals(block);
     alphaCheck->blockSignals(block);
     formatCombo->blockSignals(block);
     compressionCheck->blockSignals(block);
@@ -371,20 +327,6 @@ void TexturePropertiesWidget::onAlphaNameChanged() {
     if (currentEntry) {
         currentEntry->maskName = alphaNameEdit->text();
         emit propertyChanged();
-    }
-}
-
-void TexturePropertiesWidget::onMipmapCountChanged() {
-    if (currentEntry) {
-        bool ok;
-        int value = mipmapEdit->text().toInt(&ok);
-        if (ok && value >= 1 && value <= 16) {
-            // Mipmap count is read-only - revert to current value
-            mipmapEdit->setText(QString::number(currentEntry->mipmapCount));
-        } else {
-            // Revert to current value
-            mipmapEdit->setText(QString::number(currentEntry->mipmapCount));
-        }
     }
 }
 

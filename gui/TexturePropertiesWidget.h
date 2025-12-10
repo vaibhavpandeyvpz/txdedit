@@ -12,7 +12,6 @@
 #include <QLabel>
 #include <QScrollArea>
 #include <QListView>
-#include <QIntValidator>
 #include "CheckBox.h"
 #include "TXDModel.h"
 
@@ -30,7 +29,6 @@ signals:
 private slots:
     void onNameChanged();
     void onAlphaNameChanged();
-    void onMipmapCountChanged();
     void onAlphaChannelToggled(bool enabled);
     void onCompressionToggled(bool enabled);
 
@@ -43,17 +41,15 @@ private:
     QScrollArea* scrollArea;
     QWidget* contentWidget;
     
-    QGroupBox* basicGroup;
+    QGroupBox* propertiesGroup;
     QLineEdit* nameEdit;
     QLineEdit* alphaNameEdit;
     QLabel* widthLabel;
     QLabel* heightLabel;
-    QLineEdit* mipmapEdit;
+    QLabel* mipmapLabel;
     CheckBox* alphaCheck;
-    
-    QGroupBox* formatGroup;
     QLabel* formatLabel;
-    QComboBox* formatCombo;  // Only shown for new textures
+    QComboBox* formatCombo;  // Hidden, kept for compatibility
     CheckBox* compressionCheck;
     
     QGroupBox* flagsGroup;

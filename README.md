@@ -29,12 +29,12 @@
   - Combined view (diffuse with alpha applied)
 - **📝 Edit Texture Properties**:
   - Texture names (diffuse and alpha)
-  - Dimensions (width and height) - Note: Changing dimensions updates metadata but doesn't automatically resize texture data
+  - Dimensions (width and height) - read-only, displayed for information
   - Mipmap count (read-only, displayed for information)
-  - Compression format (DXT1, DXT3, uncompressed, etc.)
-  - Raster format
+  - Compression toggle (DXT1 for no alpha, DXT3 with alpha)
+  - Raster format (read-only, auto-detected)
   - Filter flags
-  - Alpha channel usage
+  - Alpha channel usage toggle
 
 ### Advanced Features
 
@@ -220,10 +220,10 @@ If you prefer not to build from source, you can download pre-built binaries from
 
 ### Compression Formats
 
-- ✅ Uncompressed (B8G8R8A8, B8G8R8, and various bit depths)
-- ✅ DXT1 (BC1) - Full support for compression and decompression
-- ✅ DXT3 (BC3) - Full support for compression and decompression
-- ✅ PAL4/PAL8 - Palette-based textures with automatic palette generation using libimagequant
+- ✅ Uncompressed (B8G8R8A8 with alpha, B8G8R8 without alpha)
+- ✅ DXT1 (BC1) - Used when compression enabled + no alpha channel
+- ✅ DXT3 (BC2) - Used when compression enabled + alpha channel present
+- ✅ PAL4/PAL8 - Palette-based textures (read support, automatic palette generation using libimagequant)
 
 ### Raster Formats
 
@@ -372,7 +372,31 @@ auto rgba = LibTXD::TextureConverter::convertToRGBA8(*texture, 0);
 - **libtxd Library** (`libtxd/`): Core TXD file I/O and format conversion library
 - **GUI Application** (`gui/`): Qt-based user interface
 - **Vendor Libraries** (`vendor/`): Third-party compression libraries
-- **Tests** (`tests/`): Unit tests for libtxd library
+- **Tests** (`tests/`): Comprehensive unit tests using Google Test
+- **Examples** (`examples/`): Sample TXD files from GTA3, GTAVC, and GTASA
+
+### Running Tests
+
+The project includes 61+ unit tests covering all `libtxd` components:
+
+```bash
+# Build and run tests
+mkdir build && cd build
+cmake ..
+cmake --build . --target txd_tests
+./txd_tests  # Linux/macOS
+# OR
+.\Debug\txd_tests.exe  # Windows
+```
+
+Test suites include:
+- **TxdTypesTest**: Endian conversion, chunk headers, enums
+- **TextureTest**: Texture construction, mipmaps, move semantics
+- **TextureDictionaryTest**: Dictionary operations, texture management
+- **DictionaryFileIOTest**: File I/O with example TXD files
+- **TextureConverterTest**: DXT compression/decompression, format conversion
+- **IntegrationTest**: End-to-end pipeline tests
+- **GameSpecificTest**: GTA3/VC/SA format validation
 
 ### Building from Source
 
@@ -421,10 +445,11 @@ This project uses the following open-source libraries:
 - ATC (AMD Texture Compression) formats are not supported
 
 ### Texture Editing Limitations
-- **Mipmap count**: Displayed but not editable (mipmaps are managed individually)
-- **Dimension changes**: Changing width/height updates metadata but doesn't automatically resize texture data. Use "Replace diffuse" or "Replace alpha" to update texture data with new dimensions
+- **Mipmap count**: Displayed but not editable (mipmaps are managed internally)
+- **Dimensions**: Read-only, determined by the imported image. Use "Replace diffuse" or "Replace alpha" to update texture dimensions
+- **Raster format**: Read-only, automatically determined based on compression and alpha settings
 - **Separate U/V wrap flags**: Not supported in the current library implementation (only filter flags are available)
-- **Automatic texture resizing on save**: Removed - textures are saved as-is with their current mipmap data
+- **GTA:VC compatibility**: Uncompressed textures without alpha (24-bit B8G8R8) may not display correctly in GTA:VC; use DXT1 compression for non-alpha textures instead
 
 ### Format Support
 - R8G8B8A8 format is not available (B8G8R8A8 is used instead)
