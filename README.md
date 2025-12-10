@@ -13,7 +13,7 @@
 
 </div>
 
-![Screenshot](assets/screenshot.webp)
+![Screenshot](assets/screenshot.png)
 
 ---
 
