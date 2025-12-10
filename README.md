@@ -137,6 +137,7 @@ make
 ```
 
 **Note**: If you cloned without `--recursive`, initialize submodules:
+
 ```bash
 git submodule update --init --recursive
 ```
@@ -154,6 +155,7 @@ cmake --build . --config Release
 ```
 
 **Note**: If you cloned without `--recursive`, initialize submodules:
+
 ```bash
 git submodule update --init --recursive
 ```
@@ -390,6 +392,7 @@ cmake --build . --target txd_tests
 ```
 
 Test suites include:
+
 - **TxdTypesTest**: Endian conversion, chunk headers, enums
 - **TextureTest**: Texture construction, mipmaps, move semantics
 - **TextureDictionaryTest**: Dictionary operations, texture management
@@ -440,11 +443,13 @@ This project uses the following open-source libraries:
 ## ⚠️ Known Limitations
 
 ### Platform Support
+
 - PS2 TXD format is not supported
 - Xbox platform support is not yet fully implemented
 - ATC (AMD Texture Compression) formats are not supported
 
 ### Texture Editing Limitations
+
 - **Mipmap count**: Displayed but not editable (mipmaps are managed internally)
 - **Dimensions**: Read-only, determined by the imported image. Use "Replace diffuse" or "Replace alpha" to update texture dimensions
 - **Raster format**: Read-only, automatically determined based on compression and alpha settings
@@ -452,6 +457,7 @@ This project uses the following open-source libraries:
 - **GTA:VC compatibility**: Uncompressed textures without alpha (24-bit B8G8R8) may not display correctly in GTA:VC; use DXT1 compression for non-alpha textures instead
 
 ### Format Support
+
 - R8G8B8A8 format is not available (B8G8R8A8 is used instead)
 - Some advanced texture conversion features may be simplified
 
