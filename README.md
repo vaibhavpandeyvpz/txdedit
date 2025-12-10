@@ -415,6 +415,10 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+### CI/CD
+
+Pull requests automatically trigger builds and tests on all platforms (Windows, Linux, macOS). Build artifacts are available for download from the PR checks for 7 days.
+
 ## 📝 License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
