@@ -11,7 +11,6 @@
 // Forward declarations
 namespace LibTXD {
     class TextureDictionary;
-    class Texture;
 }
 
 // Simple texture entry - just holds data for presentation
@@ -19,7 +18,7 @@ struct TXDFileEntry {
     // Metadata
     QString name;
     QString maskName;
-    LibTXD::RasterFormat rasterFormat;
+    LibTXD::RasterFormat rasterFormat;  // Original format (informational only, recalculated on save)
     bool compressionEnabled;  // Just a flag - compression happens on save
     uint32_t width;
     uint32_t height;
@@ -28,7 +27,10 @@ struct TXDFileEntry {
     uint32_t filterFlags;
     bool isNew;  // Track if added by user or loaded from file
     
-    // Uncompressed data (always RGBA8888)
+    // Platform info (D3D8 for GTA3/VC, D3D9 for SA)
+    LibTXD::Platform platform;
+    
+    // Uncompressed data for display and editing (always RGBA8888)
     std::vector<uint8_t> diffuse;  // RGB + Alpha (if hasAlpha is true, alpha channel is meaningful)
     
     // Helper: Get combined RGBA (for preview)

@@ -270,109 +270,109 @@ void MainWindow::setStatusMessage(const QString& text) {
 
 void MainWindow::applyStylesheet() {
     QString style = R"(
-        /* Global dark theme - apply to all widgets */
+        /* Global dark theme */
         * {
             background-color: #1a1a1a;
             color: #e0e0e0;
         }
         
-        /* Main window - Dark GTA theme */
         QMainWindow {
             background-color: #1a1a1a;
-            color: #e0e0e0;
         }
         
-        /* Sidebar */
+        /* Sidebar - no border, use background difference */
         #sidebar {
-            background-color: #252525;
-            border-right: 2px solid #3a3a3a;
+            background-color: #202020;
         }
         
-        /* Texture list */
+        /* Texture list - minimal border */
         #textureList {
-            border: 1px solid #3a3a3a;
-            background-color: #1e1e1e;
-            color: #e0e0e0;
+            border: none;
+            background-color: #1a1a1a;
+            outline: none;
         }
         
         #textureList::item {
             padding: 5px;
-            border-bottom: 1px solid #2a2a2a;
-            color: #e0e0e0;
+            border: none;
+            border-bottom: 1px solid #252525;
         }
         
         #textureList::item:selected {
             background-color: #ff8800;
             color: #ffffff;
-            border: 1px solid #ffaa00;
+            border: none;
+            border-bottom: 1px solid #ff8800;
         }
         
         #textureList::item:selected:hover {
-            background-color: #ffaa00; /* Lighter orange */
-            color: #ffffff;
-            border: 1px solid #ffaa00;
+            background-color: #ffaa00;
         }
         
-        #textureList::item:hover {
-            background-color: #2d2d2d;
-            color: #ffffff;
+        #textureList::item:hover:!selected {
+            background-color: #2a2a2a;
         }
         
-        /* Custom scrollbars - Dark theme */
+        /* Scrollbars - slim and subtle */
         QScrollBar:vertical {
-            background-color: #1e1e1e;
-            width: 14px;
-            border: 1px solid #3a3a3a;
+            background-color: transparent;
+            width: 8px;
+            border: none;
             margin: 0;
         }
         
         QScrollBar::handle:vertical {
-            background-color: #4a4a4a;
+            background-color: #3a3a3a;
             min-height: 30px;
+            border-radius: 4px;
             margin: 2px;
         }
         
         QScrollBar::handle:vertical:hover {
-            background-color: #5a5a5a;
+            background-color: #4a4a4a;
         }
         
-        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+            background: transparent;
             height: 0px;
         }
         
         QScrollBar:horizontal {
-            background-color: #1e1e1e;
-            height: 14px;
-            border: 1px solid #3a3a3a;
+            background-color: transparent;
+            height: 8px;
+            border: none;
             margin: 0;
         }
         
         QScrollBar::handle:horizontal {
-            background-color: #4a4a4a;
+            background-color: #3a3a3a;
             min-width: 30px;
+            border-radius: 4px;
             margin: 2px;
         }
         
         QScrollBar::handle:horizontal:hover {
-            background-color: #5a5a5a;
+            background-color: #4a4a4a;
         }
         
-        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+            background: transparent;
             width: 0px;
         }
         
-        /* Buttons - GTA style */
+        /* Action buttons - GTA orange */
         #actionButton {
             background-color: #ff6600;
             color: #ffffff;
-            border: 2px solid #ff8800;
-            padding: 6px 12px;
+            border: none;
+            padding: 8px 14px;
             font-weight: bold;
         }
         
         #actionButton:hover {
             background-color: #ff8800;
-            border: 2px solid #ffaa00;
         }
         
         #actionButton:pressed {
@@ -380,21 +380,19 @@ void MainWindow::applyStylesheet() {
         }
         
         #actionButton:disabled {
-            background-color: #1a1a1a;
+            background-color: #2a2a2a;
             color: #555555;
-            border: 2px solid #2a2a2a;
         }
         
         QPushButton {
             background-color: #2a2a2a;
-            border: 1px solid #4a4a4a;
-            padding: 6px 12px;
+            border: none;
+            padding: 8px 14px;
             color: #e0e0e0;
         }
         
         QPushButton:hover {
             background-color: #3a3a3a;
-            border: 1px solid #5a5a5a;
         }
         
         QPushButton:pressed {
@@ -402,114 +400,128 @@ void MainWindow::applyStylesheet() {
         }
         
         QPushButton:disabled {
-            background-color: #1a1a1a;
+            background-color: #1e1e1e;
             color: #555555;
-            border: 1px solid #2a2a2a;
         }
         
-        /* Toolbar - Dark theme */
+        /* Menu bar */
+        QMenuBar {
+            background-color: #202020;
+            border: none;
+            padding: 2px 0;
+        }
+        
+        QMenuBar::item {
+            background-color: transparent;
+            padding: 6px 10px;
+        }
+        
+        QMenuBar::item:selected, QMenuBar::item:pressed {
+            background-color: #2a2a2a;
+            color: #ff8800;
+        }
+        
+        /* Toolbar - clean bottom edge */
         QToolBar {
-            background-color: #252525;
-            border-bottom: 2px solid #3a3a3a;
-            spacing: 5px;
-            padding: 8px;
+            background-color: #202020;
+            border: none;
+            border-bottom: 1px solid #2a2a2a;
+            spacing: 6px;
+            padding: 6px 8px;
         }
         
         QToolBar::separator {
             background-color: #3a3a3a;
             width: 1px;
-            margin: 4px 2px;
+            margin: 6px 4px;
         }
         
         QToolBar #toolbarSpacer {
-            background-color: #252525;
+            background-color: transparent;
         }
         
         QToolBar QToolButton {
             background-color: #2a2a2a;
-            border: 1px solid #4a4a4a;
+            border: none;
             padding: 6px 12px;
             color: #e0e0e0;
         }
         
         QToolBar QToolButton:hover {
             background-color: #3a3a3a;
-            border: 1px solid #ff8800;
-            color: #ffffff;
+            color: #ff8800;
         }
         
         QToolBar QToolButton:pressed {
             background-color: #1a1a1a;
         }
         
-        /* Group boxes - Dark theme */
+        /* Group boxes - subtle styling */
         QGroupBox {
             font-weight: bold;
-            border: 2px solid #3a3a3a;
-            margin-top: 12px;
-            padding-top: 12px;
-            background-color: #1e1e1e;
-            color: #ff8800;
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
+            margin-top: 14px;
+            padding: 8px;
+            padding-top: 14px;
+            background-color: transparent;
         }
         
         QGroupBox::title {
             subcontrol-origin: margin;
-            left: 10px;
-            padding: 0 8px;
+            left: 12px;
+            padding: 0 6px;
             color: #ff8800;
+            background-color: #1a1a1a;
         }
         
-        /* Line edits - Dark theme */
+        /* Line edits */
         QLineEdit {
-            border: 1px solid #4a4a4a;
+            border: 1px solid #3a3a3a;
+            border-radius: 2px;
             padding: 6px;
-            background-color: #2a2a2a;
+            background-color: #252525;
             color: #e0e0e0;
         }
         
         QLineEdit:focus {
-            border: 2px solid #00d4ff;
-            background-color: #2d2d2d;
+            border: 1px solid #ff8800;
         }
         
-        /* Spin boxes - Dark theme */
+        /* Spin boxes */
         QSpinBox {
-            border: 1px solid #4a4a4a;
+            border: 1px solid #3a3a3a;
+            border-radius: 2px;
             padding: 5px;
-            background-color: #2a2a2a;
+            background-color: #252525;
             color: #e0e0e0;
         }
         
         QSpinBox:focus {
-            border: 2px solid #00d4ff;
+            border: 1px solid #ff8800;
         }
         
         QSpinBox::up-button, QSpinBox::down-button {
-            background-color: #3a3a3a;
-            border: 1px solid #5a5a5a;
+            background-color: #2a2a2a;
+            border: none;
             width: 20px;
         }
         
         QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-            background-color: #4a4a4a;
+            background-color: #3a3a3a;
         }
         
-        /* Combo boxes - Dark theme */
+        /* Combo boxes */
         QComboBox {
-            border: 1px solid #4a4a4a;
+            border: 1px solid #3a3a3a;
+            border-radius: 2px;
             padding: 6px;
-            background-color: #2a2a2a;
+            background-color: #252525;
             color: #e0e0e0;
         }
         
-        QComboBox:hover {
+        QComboBox:hover, QComboBox:focus {
             border: 1px solid #ff8800;
-            background-color: #2d2d2d;
-        }
-        
-        QComboBox:focus {
-            border: 2px solid #ff8800;
-            background-color: #2d2d2d;
         }
         
         QComboBox::drop-down {
@@ -518,30 +530,22 @@ void MainWindow::applyStylesheet() {
             background-color: transparent;
         }
         
-        QComboBox::drop-down:hover {
-            background-color: transparent;
-        }
-        
         QComboBox QAbstractItemView {
-            background-color: #1a1a1a;
+            background-color: #1e1e1e;
             border: 1px solid #3a3a3a;
             color: #e0e0e0;
             selection-background-color: #ff8800;
             selection-color: #ffffff;
             outline: none;
-            padding: 0px;
-            margin: 0px;
         }
         
         QComboBox QAbstractItemView::item {
             padding: 6px 8px;
-            border: none;
             min-height: 20px;
         }
         
         QComboBox QAbstractItemView::item:hover {
-            background-color: #3a3a3a;
-            color: #ff8800;
+            background-color: #2a2a2a;
         }
         
         QComboBox QAbstractItemView::item:selected {
@@ -549,34 +553,22 @@ void MainWindow::applyStylesheet() {
             color: #ffffff;
         }
         
-        QComboBox QAbstractItemView::item:selected:hover {
-            background-color: #ffaa00;
-            color: #ffffff;
-        }
-        
         QListView {
-            background-color: #1a1a1a;
+            background-color: #1e1e1e;
             border: 1px solid #3a3a3a;
-            padding: 0px;
-            margin: 0px;
         }
         
         QListView::viewport {
-            background-color: #1a1a1a;
-            border: none;
+            background-color: #1e1e1e;
         }
         
         QListView::item {
-            background-color: transparent;
             padding: 6px 8px;
-            border: none;
-            margin: 0px;
             min-height: 20px;
         }
         
         QListView::item:hover {
-            background-color: #3a3a3a;
-            color: #ff8800;
+            background-color: #2a2a2a;
         }
         
         QListView::item:selected {
@@ -584,32 +576,19 @@ void MainWindow::applyStylesheet() {
             color: #ffffff;
         }
         
-        QListView::item:selected:hover {
-            background-color: #ffaa00;
-            color: #ffffff;
-        }
-        
-        /* Context menu - Dark theme */
+        /* Context menu */
         QMenu {
-            background-color: #1a1a1a;
+            background-color: #1e1e1e;
             border: 1px solid #3a3a3a;
-            color: #e0e0e0;
             padding: 4px;
         }
         
         QMenu::item {
-            background-color: transparent;
             padding: 6px 24px 6px 8px;
-            border: none;
             min-height: 20px;
         }
         
-        QMenu::item:hover {
-            background-color: #3a3a3a;
-            color: #ff8800;
-        }
-        
-        QMenu::item:selected {
+        QMenu::item:hover, QMenu::item:selected {
             background-color: #ff8800;
             color: #ffffff;
         }
@@ -620,252 +599,185 @@ void MainWindow::applyStylesheet() {
             margin: 4px 0px;
         }
         
-        /* Fix dropdown viewport borders */
-        QComboBox::view {
-            background-color: #1a1a1a;
-            border: 1px solid #3a3a3a;
-            padding: 0px;
-            margin: 0px;
-        }
-        
-        QComboBox QAbstractItemView::viewport {
-            background-color: #1a1a1a;
-            border: none;
-        }
-        
-        /* Check boxes - Dark theme */
+        /* Check boxes */
         QCheckBox {
             spacing: 8px;
-            color: #e0e0e0;
         }
         
         QCheckBox::indicator {
             width: 18px;
             height: 18px;
-            border: 2px solid #4a4a4a;
-            background-color: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 2px;
+            background-color: #252525;
         }
         
         QCheckBox::indicator:hover {
-            border: 2px solid #ff8800;
+            border: 1px solid #ff8800;
         }
         
         QCheckBox::indicator:checked {
             background-color: #ff8800;
-            border: 2px solid #ff8800;
+            border: 1px solid #ff8800;
         }
         
-        /* Sliders - GTA style */
+        /* Sliders */
         QSlider::groove:horizontal {
-            height: 8px;
+            height: 4px;
             background: #2a2a2a;
-            border: 1px solid #4a4a4a;
+            border-radius: 2px;
         }
         
         QSlider::handle:horizontal {
             background: #ff6600;
-            border: 2px solid #ff8800;
-            width: 20px;
-            height: 20px;
-            margin: -6px 0;
+            width: 14px;
+            height: 14px;
+            margin: -5px 0;
+            border-radius: 7px;
         }
         
         QSlider::handle:horizontal:hover {
             background: #ff8800;
-            border: 2px solid #ffaa00;
         }
         
-        /* Tab widget - Dark theme */
-        QTabWidget::pane {
-            border: 1px solid #3a3a3a;
-            background-color: #1a1a1a;
-        }
-        
-        QTabBar::tab {
-            background-color: #252525;
-            color: #888888;
-            padding: 10px 20px;
-            border-top-left-radius: 4px;
-            border-top-right-radius: 4px;
-            margin-right: 2px;
-            border: 1px solid #3a3a3a;
-        }
-        
-        QTabBar::tab:selected {
-            background-color: #1a1a1a;
-            color: #ff8800;
-            border-bottom: 3px solid #ff8800;
-            border-top: 1px solid #3a3a3a;
-            border-left: 1px solid #3a3a3a;
-            border-right: 1px solid #3a3a3a;
-        }
-        
-        QTabBar::tab:hover {
-            background-color: #2d2d2d;
-            color: #ffffff;
-        }
-        
-        /* Labels */
-        QLabel {
-            color: #e0e0e0;
-        }
-        
-        /* Form layout labels */
-        QFormLayout QLabel {
-            color: #b0b0b0;
-        }
-        
-        /* Status bar */
-        QStatusBar {
-            background-color: #252525;
-            color: #e0e0e0;
-            border-top: 2px solid #3a3a3a;
-            padding: 4px 8px;
-            min-height: 26px;
-        }
-        
-        QStatusBar QLabel {
-            color: #b0b0b0;
-            background-color: transparent;
-            margin: 0 10px;
-        }
-        
-        QStatusBar::item {
-            border: none;
-            background-color: transparent;
-        }
-        
-        /* Splitter */
-        QSplitter::handle {
-            background-color: #3a3a3a;
-        }
-        
-        QSplitter::handle:hover {
-            background-color: #4a4a4a;
-        }
-        
-        /* Graphics view background */
-        QGraphicsView {
-            background-color: #1a1a1a;
-            border: 1px solid #3a3a3a;
-        }
-        
-        /* Preview widget background */
-        #previewWidget {
-            background-color: #1a1a1a;
-        }
-        
-        /* Hide tab widget completely when not in use */
+        /* Tab widget - seamless design */
         QTabWidget {
             background-color: #1a1a1a;
         }
         
         QTabWidget::pane {
+            border: none;
             background-color: #1a1a1a;
+            top: -1px;
         }
         
         QTabBar {
             background-color: #1a1a1a;
         }
         
-        /* Properties widget background */
-        #propertiesWidget {
-            background-color: #252525;
+        QTabBar::tab {
+            background-color: transparent;
+            color: #707070;
+            padding: 10px 20px;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-right: 4px;
         }
         
-        /* Scroll area background */
-        QScrollArea {
-            background-color: #252525;
+        QTabBar::tab:selected {
+            color: #ff8800;
+            border-bottom: 2px solid #ff8800;
+        }
+        
+        QTabBar::tab:hover:!selected {
+            color: #b0b0b0;
+            border-bottom: 2px solid #3a3a3a;
+        }
+        
+        /* Labels */
+        QLabel {
+            color: #e0e0e0;
+            background-color: transparent;
+        }
+        
+        /* Status bar - subtle top edge */
+        QStatusBar {
+            background-color: #202020;
+            border: none;
+            border-top: 1px solid #2a2a2a;
+            padding: 4px 8px;
+            min-height: 24px;
+        }
+        
+        QStatusBar QLabel {
+            color: #909090;
+            margin: 0 8px;
+        }
+        
+        QStatusBar::item {
             border: none;
         }
         
-        QScrollArea QWidget {
+        /* Splitter - thin handles */
+        QSplitter::handle {
             background-color: #252525;
+            width: 1px;
         }
         
-        /* Dialog boxes - Dark theme */
-        QMessageBox {
+        QSplitter::handle:hover {
+            background-color: #ff8800;
+        }
+        
+        /* Graphics view - no border */
+        QGraphicsView {
             background-color: #1a1a1a;
-            color: #e0e0e0;
+            border: none;
+        }
+        
+        /* Preview widget */
+        #previewWidget {
+            background-color: #1a1a1a;
+        }
+        
+        /* Properties widget */
+        #propertiesWidget {
+            background-color: #202020;
+        }
+        
+        /* Scroll area */
+        QScrollArea {
+            background-color: transparent;
+            border: none;
+        }
+        
+        QScrollArea > QWidget > QWidget {
+            background-color: transparent;
+        }
+        
+        /* Dialog boxes */
+        QMessageBox {
+            background-color: #1e1e1e;
         }
         
         QMessageBox QLabel {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
+            background-color: transparent;
         }
         
         QMessageBox QPushButton {
             background-color: #2a2a2a;
-            border: 1px solid #4a4a4a;
-            padding: 6px 12px;
-            color: #e0e0e0;
+            border: none;
+            padding: 8px 16px;
             min-width: 80px;
         }
         
         QMessageBox QPushButton:hover {
             background-color: #3a3a3a;
-            border: 1px solid #5a5a5a;
         }
         
-        QMessageBox QPushButton:pressed {
-            background-color: #1a1a1a;
-        }
-        
-        /* File dialog - Dark theme */
+        /* File dialog */
         QFileDialog {
             background-color: #1a1a1a;
-            color: #e0e0e0;
-        }
-        
-        QFileDialog QLabel {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
         }
         
         QFileDialog QTreeView, QFileDialog QListView {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
+            background-color: #1e1e1e;
             border: 1px solid #3a3a3a;
         }
         
-        QFileDialog QTreeView::item, QFileDialog QListView::item {
-            color: #e0e0e0;
-            padding: 4px;
-        }
-        
         QFileDialog QTreeView::item:selected, QFileDialog QListView::item:selected {
-            background-color: #0066cc;
+            background-color: #ff8800;
             color: #ffffff;
         }
         
-        QFileDialog QTreeView::item:hover, QFileDialog QListView::item:hover {
-            background-color: #2d2d2d;
-        }
-        
         QFileDialog QLineEdit {
-            background-color: #2a2a2a;
-            border: 1px solid #4a4a4a;
-            color: #e0e0e0;
+            background-color: #252525;
+            border: 1px solid #3a3a3a;
             padding: 6px;
         }
         
         QFileDialog QComboBox {
-            background-color: #2a2a2a;
-            border: 1px solid #4a4a4a;
-            color: #e0e0e0;
-        }
-        
-        QFileDialog QComboBox::drop-down {
-            border: none;
-            width: 0px;
-            background-color: transparent;
-        }
-        
-        QFileDialog QComboBox QAbstractItemView {
-            background-color: #1a1a1a;
+            background-color: #252525;
             border: 1px solid #3a3a3a;
-            selection-background-color: #ff8800;
-            selection-color: #ffffff;
         }
     )";
     
@@ -1387,8 +1299,8 @@ void MainWindow::updateTextureProperties() {
     TXDFileEntry* entry = model->getTexture(selectedTextureIndex);
     if (entry) {
         if (propertiesWidget) {
-            propertiesWidget->show();
-            propertiesWidget->setTexture(entry);
+        propertiesWidget->show();
+        propertiesWidget->setTexture(entry);
         }
     } else {
         if (propertiesWidget) propertiesWidget->clear();
@@ -1500,11 +1412,19 @@ void MainWindow::addTexture() {
     entry.mipmapCount = 1;
     entry.filterFlags = 0;
     entry.isNew = true;
+    entry.platform = LibTXD::Platform::D3D8;  // Default to D3D8 for VC compatibility
     
-    // Copy RGBA data
-    const uint8_t* imageData = rgbaImage.constBits();
+    // Copy RGBA data (handle potential scanline padding)
     size_t dataSize = width * height * 4;
-    entry.diffuse.assign(imageData, imageData + dataSize);
+    entry.diffuse.resize(dataSize);
+    int bytesPerLine = rgbaImage.bytesPerLine();
+    int expectedBytesPerLine = width * 4;
+    
+    for (uint32_t y = 0; y < height; ++y) {
+        const uint8_t* srcRow = rgbaImage.constScanLine(y);
+        uint8_t* dstRow = entry.diffuse.data() + (y * expectedBytesPerLine);
+        std::memcpy(dstRow, srcRow, expectedBytesPerLine);
+    }
     
     // Add to model
     model->addTexture(std::move(entry));
@@ -1759,11 +1679,18 @@ void MainWindow::importTexture() {
     entry.mipmapCount = 1;
     entry.filterFlags = 0;
     entry.isNew = true;
+    entry.platform = LibTXD::Platform::D3D8;  // Default to D3D8 for VC compatibility
     
-    // Copy RGBA data
-    const uint8_t* imageData = rgbaImage.constBits();
+    // Copy RGBA data (handle potential scanline padding)
     size_t dataSize = width * height * 4;
-    entry.diffuse.assign(imageData, imageData + dataSize);
+    entry.diffuse.resize(dataSize);
+    int expectedBytesPerLine = width * 4;
+    
+    for (uint32_t y = 0; y < height; ++y) {
+        const uint8_t* srcRow = rgbaImage.constScanLine(y);
+        uint8_t* dstRow = entry.diffuse.data() + (y * expectedBytesPerLine);
+        std::memcpy(dstRow, srcRow, expectedBytesPerLine);
+    }
     
     // Add to model
     model->addTexture(std::move(entry));
@@ -2003,25 +1930,28 @@ void MainWindow::onReplaceDiffuseRequested(int index) {
     }
     
     // Prepare new texture data
-    const uint8_t* imageData = rgbaImage.constBits();
     uint32_t newWidth = rgbaImage.width();
     uint32_t newHeight = rgbaImage.height();
     size_t dataSize = newWidth * newHeight * 4;
     std::vector<uint8_t> newTextureData(dataSize);
     
+    // Copy image data handling potential scanline padding
+    int bytesPerLine = rgbaImage.bytesPerLine();
+    int expectedBytesPerLine = newWidth * 4;
+    
+    for (uint32_t y = 0; y < newHeight; ++y) {
+        const uint8_t* srcRow = rgbaImage.constScanLine(y);
+        uint8_t* dstRow = newTextureData.data() + (y * expectedBytesPerLine);
+        std::memcpy(dstRow, srcRow, expectedBytesPerLine);
+    }
+    
     if (hadAlpha && existingRGBA && !dimensionsChanged) {
-        // Preserve existing alpha channel, replace RGB (dimensions match)
+        // Preserve existing alpha channel from original texture
         for (size_t i = 0; i < dataSize; i += 4) {
-            newTextureData[i] = imageData[i];     // R
-            newTextureData[i + 1] = imageData[i + 1]; // G
-            newTextureData[i + 2] = imageData[i + 2]; // B
             newTextureData[i + 3] = existingRGBA[i + 3]; // A (preserve existing)
         }
         entry->hasAlpha = true;
     } else {
-        // Replace everything (including alpha if new image has it)
-        std::memcpy(newTextureData.data(), imageData, dataSize);
-        
         // If dimensions changed and texture had alpha, reset alpha to white (#ffffff)
         if (needsAlphaReset) {
             for (size_t i = 3; i < dataSize; i += 4) {

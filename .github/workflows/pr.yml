@@ -1,32 +1,18 @@
-name: Build and Release
+name: PR Build & Test
 
 on:
-  release:
-    types: [created]
-  workflow_dispatch:
-
-permissions:
-  contents: write
+  pull_request:
+    branches: [main, master]
 
 jobs:
   build-windows:
-    name: Build Windows
+    name: Build & Test Windows
     runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Extract version from tag
-        if: github.event_name == 'release'
-        id: get_version
-        run: |
-          $tag = "${{ github.event.release.tag_name }}"
-          # Remove 'v' prefix if present (e.g., v1.2.3 -> 1.2.3)
-          $version = $tag -replace '^v', ''
-          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "Extracted version: $version"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -38,41 +24,24 @@ jobs:
       - name: Set Qt directory
         shell: pwsh
         run: |
-          # Try multiple ways to get Qt directory
           $QtDir = $null
           if ($env:Qt6_DIR) {
             $QtDir = $env:Qt6_DIR
           } elseif ($env:Qt_DIR) {
             $QtDir = $env:Qt_DIR
           } else {
-            # Try to find Qt installation
-            # Qt6Config.cmake is typically at: Qt/6.10.1/msvc2022_64/lib/cmake/Qt6/Qt6Config.cmake
-            # We need to go up 3 levels to get to the root Qt directory
             $QtConfig = Get-ChildItem -Path "$env:RUNNER_WORKSPACE" -Filter "Qt6Config.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($QtConfig) {
-              # Go up from lib/cmake/Qt6 to the root Qt directory (msvc2022_64)
               $QtDir = $QtConfig.Directory.Parent.Parent.Parent.FullName
             }
           }
 
           if (-not $QtDir -or -not (Test-Path $QtDir)) {
             Write-Host "Error: Could not determine Qt directory"
-            Write-Host "Qt6_DIR env: $env:Qt6_DIR"
-            Write-Host "Qt_DIR env: $env:Qt_DIR"
-            if ($QtConfig) {
-              Write-Host "Found Qt6Config.cmake at: $($QtConfig.FullName)"
-              Write-Host "Calculated Qt dir: $QtDir"
-            }
             exit 1
           }
 
           Write-Host "Using Qt directory: $QtDir"
-          # Verify bin directory exists
-          if (-not (Test-Path "$QtDir\bin")) {
-            Write-Host "Warning: bin directory not found at $QtDir\bin"
-            Write-Host "Directory contents:"
-            Get-ChildItem $QtDir | Select-Object Name
-          }
           echo "QT_DIR=$QtDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Setup MSVC
@@ -82,27 +51,25 @@ jobs:
         shell: pwsh
         run: |
           $cmakeArgs = @("-B", "build", "-G", "Visual Studio 17 2022", "-A", "x64")
-          if ($env:VERSION) {
-            $cmakeArgs += "-DPROJECT_VERSION=$env:VERSION"
-          }
           cmake @cmakeArgs
         env:
           CMAKE_PREFIX_PATH: ${{ env.QT_DIR }}
-          VERSION: ${{ env.VERSION }}
 
       - name: Build
         run: |
           cmake --build build --config Release
+
+      - name: Run Tests
+        run: |
+          .\build\Release\txd_tests.exe --gtest_color=yes
 
       - name: Deploy Qt libraries
         run: |
           $QtBinPath = "$env:QT_DIR\bin"
           $ExePath = "build\bin\Release\txdedit.exe"
 
-          # Verify paths exist
           if (-not (Test-Path $QtBinPath)) {
             Write-Host "Error: Qt bin directory not found at $QtBinPath"
-            Write-Host "QT_DIR: $env:QT_DIR"
             exit 1
           }
 
@@ -111,7 +78,6 @@ jobs:
             exit 1
           }
 
-          # Use windeployqt to automatically deploy Qt dependencies
           $Windeployqt = "$QtBinPath\windeployqt.exe"
           if (Test-Path $Windeployqt) {
             Write-Host "Using windeployqt to deploy Qt libraries..."
@@ -119,83 +85,48 @@ jobs:
           } else {
             Write-Host "Warning: windeployqt not found, manually copying DLLs..."
             $DestPath = "build\bin\Release"
-            
-            # Create platforms directory
             $PlatformsPath = "$DestPath\platforms"
             if (-not (Test-Path $PlatformsPath)) {
               New-Item -ItemType Directory -Force -Path $PlatformsPath | Out-Null
             }
-            
-            # Copy required Qt DLLs
             $QtDlls = @("Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll")
             foreach ($dll in $QtDlls) {
               $src = "$QtBinPath\$dll"
               if (Test-Path $src) {
                 Copy-Item $src -Destination $DestPath -Force
-                Write-Host "Copied $dll"
               }
             }
-            
-            # Copy platform plugin
             $PlatformDll = "$QtBinPath\platforms\qwindows.dll"
             if (Test-Path $PlatformDll) {
               Copy-Item $PlatformDll -Destination $PlatformsPath -Force
-              Write-Host "Copied qwindows.dll"
             }
           }
 
-          # Verify deployment
-          Write-Host "`nDeployed files:"
-          Get-ChildItem "build\bin\Release" -Filter "*.dll" | Select-Object Name
-
       - name: Create Windows ZIP
         run: |
-          # Copy icons and logos to Release directory if they exist in bin directory
           if (Test-Path "build\bin\icons") {
             Copy-Item -Path "build\bin\icons" -Destination "build\bin\Release\icons" -Recurse -Force
           }
           if (Test-Path "build\bin\logos") {
             Copy-Item -Path "build\bin\logos" -Destination "build\bin\Release\logos" -Recurse -Force
           }
-
-          # Create ZIP with all files from Release directory
           Compress-Archive -Path "build\bin\Release\*" -DestinationPath "txdedit-windows-x64.zip" -Force
 
-      - name: Upload Windows artifact to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.event.release.tag_name }}
-          files: txdedit-windows-x64.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Windows artifact as build artifact
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: txdedit-windows-x64
           path: txdedit-windows-x64.zip
-          retention-days: 30
+          retention-days: 7
 
   build-linux:
-    name: Build Linux
+    name: Build & Test Linux
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Extract version from tag
-        if: github.event_name == 'release'
-        id: get_version
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          # Remove 'v' prefix if present (e.g., v1.2.3 -> 1.2.3)
-          VERSION="${TAG#v}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Extracted version: $VERSION"
 
       - name: Install dependencies
         run: |
@@ -210,16 +141,12 @@ jobs:
 
       - name: Set Qt directory
         run: |
-          # Try multiple ways to get Qt directory
           QT_DIR=""
           if [ -n "${{ env.Qt6_DIR }}" ]; then
             QT_DIR="${{ env.Qt6_DIR }}"
           elif [ -n "${{ env.Qt_DIR }}" ]; then
             QT_DIR="${{ env.Qt_DIR }}"
           else
-            # Try to find Qt installation
-            # Qt6Config.cmake is typically at: Qt/6.10.1/gcc_64/lib/cmake/Qt6/Qt6Config.cmake
-            # We need to go up 3 levels to get to the root Qt directory
             QT_CONFIG=$(find "$HOME" "$RUNNER_WORKSPACE" -name "Qt6Config.cmake" -type f 2>/dev/null | head -1)
             if [ -n "$QT_CONFIG" ]; then
               QT_DIR=$(dirname "$QT_CONFIG" | xargs dirname | xargs dirname | xargs dirname)
@@ -228,8 +155,6 @@ jobs:
 
           if [ -z "$QT_DIR" ] || [ ! -d "$QT_DIR" ]; then
             echo "Error: Could not determine Qt directory"
-            echo "Qt6_DIR env: ${{ env.Qt6_DIR }}"
-            echo "Qt_DIR env: ${{ env.Qt_DIR }}"
             exit 1
           fi
 
@@ -238,15 +163,15 @@ jobs:
 
       - name: Configure CMake
         run: |
-          CMAKE_ARGS="-B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=\"${{ env.QT_DIR }}\""
-          if [ -n "${{ env.VERSION }}" ]; then
-            CMAKE_ARGS="$CMAKE_ARGS -DPROJECT_VERSION=${{ env.VERSION }}"
-          fi
-          cmake $CMAKE_ARGS
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.QT_DIR }}"
 
       - name: Build
         run: |
           cmake --build build --config Release -j$(nproc)
+
+      - name: Run Tests
+        run: |
+          ./build/txd_tests --gtest_color=yes
 
       - name: Install linuxdeploy
         run: |
@@ -265,11 +190,9 @@ jobs:
           cp -r build/bin/icons AppDir/usr/bin/
           cp -r build/bin/logos AppDir/usr/bin/
 
-          # Copy and set up icon for desktop file
           if [ -f "build/bin/icons/linux.png" ]; then
             mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
             cp build/bin/icons/linux.png AppDir/usr/share/icons/hicolor/256x256/apps/txdedit.png
-            # Also create symlinks for other common sizes
             mkdir -p AppDir/usr/share/icons/hicolor/128x128/apps
             mkdir -p AppDir/usr/share/icons/hicolor/64x64/apps
             mkdir -p AppDir/usr/share/icons/hicolor/48x48/apps
@@ -286,21 +209,13 @@ jobs:
           export LD_LIBRARY_PATH="${{ env.QT_DIR }}/lib:$LD_LIBRARY_PATH"
           export QMAKE="${{ env.QT_DIR }}/bin/qmake"
 
-          # Verify qmake is available
           if [ ! -f "$QMAKE" ]; then
             echo "Error: qmake not found at $QMAKE"
-            echo "Qt directory: ${{ env.QT_DIR }}"
-            ls -la "${{ env.QT_DIR }}/bin/" || true
             exit 1
           fi
 
-          # Make qmake executable
           chmod +x "$QMAKE"
 
-          # Verify qmake works
-          "$QMAKE" -v || true
-
-          # Create desktop file with icon
           mkdir -p AppDir/usr/share/applications
           cat > AppDir/usr/share/applications/txdedit.desktop << 'DESKTOP_EOF'
           [Desktop Entry]
@@ -312,17 +227,12 @@ jobs:
           Categories=Graphics;
           DESKTOP_EOF
 
-          # Run linuxdeploy with qt plugin, explicitly setting QMAKE
           QMAKE="$QMAKE" ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --plugin qt \
             --output appimage || true
 
-          # Check for AppImage file (linuxdeploy creates it with the app name)
-          # It might be named based on desktop file Name (TXD Edit) or Exec (txdedit)
           APPIMAGE_FILE=""
-
-          # List all AppImage files and find the one we created
           for file in *.AppImage; do
             if [ -f "$file" ] && [ "$file" != "linuxdeploy-x86_64.AppImage" ] && [ "$file" != "linuxdeploy-plugin-qt-x86_64.AppImage" ]; then
               APPIMAGE_FILE="$file"
@@ -331,18 +241,12 @@ jobs:
           done
 
           if [ -n "$APPIMAGE_FILE" ] && [ -f "$APPIMAGE_FILE" ]; then
-            echo "AppImage created successfully: $APPIMAGE_FILE"
             mv "$APPIMAGE_FILE" txdedit-linux-x86_64.AppImage
             chmod +x txdedit-linux-x86_64.AppImage
           else
-            # Fallback: create AppImage without qt plugin
             echo "Creating fallback AppImage without qt plugin..."
-            ./linuxdeploy-x86_64.AppImage \
-              --appdir AppDir \
-              --output appimage || true
+            ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage || true
             
-            # Check again for AppImage
-            APPIMAGE_FILE=""
             for file in *.AppImage; do
               if [ -f "$file" ] && [ "$file" != "linuxdeploy-x86_64.AppImage" ] && [ "$file" != "linuxdeploy-plugin-qt-x86_64.AppImage" ]; then
                 APPIMAGE_FILE="$file"
@@ -351,66 +255,29 @@ jobs:
             done
             
             if [ -n "$APPIMAGE_FILE" ] && [ -f "$APPIMAGE_FILE" ]; then
-              echo "Fallback AppImage created successfully: $APPIMAGE_FILE"
               mv "$APPIMAGE_FILE" txdedit-linux-x86_64.AppImage
               chmod +x txdedit-linux-x86_64.AppImage
             else
               echo "Error: Failed to create AppImage"
-              echo "Current directory contents:"
-              ls -la
-              echo "AppDir contents:"
-              ls -la AppDir/ || true
-              echo "Looking for AppImage files:"
-              ls -la *.AppImage || true
               exit 1
             fi
           fi
 
-          # Final verification
-          if [ ! -f txdedit-linux-x86_64.AppImage ]; then
-            echo "Error: AppImage file not found after creation"
-            ls -la *.AppImage || true
-            exit 1
-          fi
-
-          echo "AppImage created successfully: txdedit-linux-x86_64.AppImage"
-          ls -lh txdedit-linux-x86_64.AppImage
-
-      - name: Upload Linux artifact to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.event.release.tag_name }}
-          files: txdedit-linux-x86_64.AppImage
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux artifact as build artifact
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: txdedit-linux-x86_64
           path: txdedit-linux-x86_64.AppImage
-          retention-days: 30
+          retention-days: 7
 
   build-macos:
-    name: Build macOS
+    name: Build & Test macOS
     runs-on: macos-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Extract version from tag
-        if: github.event_name == 'release'
-        id: get_version
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          # Remove 'v' prefix if present (e.g., v1.2.3 -> 1.2.3)
-          VERSION="${TAG#v}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Extracted version: $VERSION"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -421,29 +288,19 @@ jobs:
 
       - name: Set Qt directory
         run: |
-          # Try multiple ways to get Qt directory
           QT_DIR=""
 
-          # Check environment variables first
           if [ -n "${{ env.Qt6_DIR }}" ]; then
             QT_DIR="${{ env.Qt6_DIR }}"
-            echo "Found Qt6_DIR env var: $QT_DIR"
           elif [ -n "${{ env.Qt_DIR }}" ]; then
             QT_DIR="${{ env.Qt_DIR }}"
-            echo "Found Qt_DIR env var: $QT_DIR"
           fi
 
-          # If still not found, try action outputs
           if [ -z "$QT_DIR" ] && [ -n "${{ steps.install-qt.outputs.Qt6_DIR }}" ]; then
             QT_DIR="${{ steps.install-qt.outputs.Qt6_DIR }}"
-            echo "Found Qt6_DIR from action output: $QT_DIR"
           fi
 
-          # If still not found, search for Qt installation
           if [ -z "$QT_DIR" ] || [ ! -d "$QT_DIR" ]; then
-            echo "Searching for Qt installation..."
-            
-            # Try common installation paths
             POSSIBLE_PATHS=(
               "$HOME/Qt/6.10.1/clang_64"
               "/Users/runner/Qt/6.10.1/clang_64"
@@ -453,39 +310,25 @@ jobs:
             for path in "${POSSIBLE_PATHS[@]}"; do
               if [ -d "$path" ] && [ -f "$path/bin/qmake" ]; then
                 QT_DIR="$path"
-                echo "Found Qt at: $QT_DIR"
                 break
               fi
             done
             
-            # If still not found, search for Qt6Config.cmake
             if [ -z "$QT_DIR" ] || [ ! -d "$QT_DIR" ]; then
               QT_CONFIG=$(find "$HOME" "$RUNNER_WORKSPACE" "/Users/runner" -name "Qt6Config.cmake" -type f 2>/dev/null | head -1)
               if [ -n "$QT_CONFIG" ]; then
-                # Qt6Config.cmake is at: .../clang_64/lib/cmake/Qt6/Qt6Config.cmake
-                # Go up 3 levels: Qt6 -> cmake -> lib -> clang_64
                 QT_DIR=$(dirname "$QT_CONFIG" | xargs dirname | xargs dirname | xargs dirname)
-                echo "Found Qt via Qt6Config.cmake at: $QT_CONFIG"
-                echo "Calculated Qt dir: $QT_DIR"
               fi
             fi
           fi
 
-          # Final validation
           if [ -z "$QT_DIR" ] || [ ! -d "$QT_DIR" ]; then
             echo "Error: Could not determine Qt directory"
-            echo "Qt6_DIR env: ${{ env.Qt6_DIR }}"
-            echo "Qt_DIR env: ${{ env.Qt_DIR }}"
-            echo "Action output Qt6_DIR: ${{ steps.install-qt.outputs.Qt6_DIR }}"
-            echo "Searching in: $HOME, $RUNNER_WORKSPACE, /Users/runner"
             exit 1
           fi
 
-          # Verify it's a valid Qt directory
           if [ ! -f "$QT_DIR/bin/qmake" ]; then
-            echo "Error: Qt directory found but qmake not found at $QT_DIR/bin/qmake"
-            echo "Directory contents:"
-            ls -la "$QT_DIR/bin/" || true
+            echo "Error: qmake not found at $QT_DIR/bin/qmake"
             exit 1
           fi
 
@@ -494,47 +337,32 @@ jobs:
 
       - name: Configure CMake
         run: |
-          CMAKE_ARGS="-B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=\"${{ env.QT_DIR }}\""
-          if [ -n "${{ env.VERSION }}" ]; then
-            CMAKE_ARGS="$CMAKE_ARGS -DPROJECT_VERSION=${{ env.VERSION }}"
-          fi
-          cmake $CMAKE_ARGS
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.QT_DIR }}"
 
       - name: Build
         run: |
           cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+
+      - name: Run Tests
+        run: |
+          ./build/txd_tests --gtest_color=yes
 
       - name: Deploy Qt frameworks
         run: |
           QT_DIR="${{ env.QT_DIR }}"
           export PATH="$QT_DIR/bin:$PATH"
 
-          echo "Qt directory: $QT_DIR"
-
-          # Verify Qt directory exists
-          if [ ! -d "$QT_DIR" ]; then
-            echo "Error: Qt directory does not exist: $QT_DIR"
-            exit 1
-          fi
-
-          # Find macdeployqt - it's usually in the bin directory
           MACDEPLOYQT="$QT_DIR/bin/macdeployqt"
 
-          # If not found, try to locate it
           if [ ! -f "$MACDEPLOYQT" ]; then
-            echo "macdeployqt not found at $MACDEPLOYQT, searching..."
             MACDEPLOYQT=$(find "$QT_DIR" -name "macdeployqt" -type f 2>/dev/null | head -1)
           fi
 
           if [ -z "$MACDEPLOYQT" ] || [ ! -f "$MACDEPLOYQT" ]; then
-            echo "Error: macdeployqt not found in Qt installation"
-            echo "Qt directory: $QT_DIR"
-            echo "Qt bin directory contents:"
-            ls -la "$QT_DIR/bin/" || true
+            echo "Error: macdeployqt not found"
             exit 1
           fi
 
-          echo "Using macdeployqt at: $MACDEPLOYQT"
           chmod +x "$MACDEPLOYQT"
           "$MACDEPLOYQT" build/bin/txdedit.app -always-overwrite
 
@@ -544,38 +372,20 @@ jobs:
 
       - name: Create DMG
         run: |
-          APP_NAME="txdedit"
           APP_PATH="build/bin/txdedit.app"
           DMG_NAME="txdedit-macos-x64.dmg"
           DMG_APP_NAME="TXD Edit.app"
 
-          # Remove quarantine attribute to prevent "damaged" error
           xattr -cr "$APP_PATH"
 
-          # Code sign the app with ad-hoc signature (required for macOS Gatekeeper)
-          echo "Code signing app bundle..."
-          codesign --force --deep --sign - "$APP_PATH" || {
-            echo "Warning: Code signing failed, but continuing..."
-          }
+          codesign --force --deep --sign - "$APP_PATH" || true
 
-          # Verify the signature
-          codesign --verify --verbose "$APP_PATH" || {
-            echo "Warning: Code signature verification failed, but continuing..."
-          }
-
-          # Create a temporary directory for DMG contents
           mkdir -p dmg_temp
           cp -R "$APP_PATH" "dmg_temp/$DMG_APP_NAME"
 
-          # Remove quarantine from copied app as well
           xattr -cr "dmg_temp/$DMG_APP_NAME"
+          codesign --force --deep --sign - "dmg_temp/$DMG_APP_NAME" || true
 
-          # Code sign the copied app as well
-          codesign --force --deep --sign - "dmg_temp/$DMG_APP_NAME" || {
-            echo "Warning: Code signing copied app failed, but continuing..."
-          }
-
-          # Create DMG
           create-dmg \
             --volname "TXD Edit" \
             --volicon "$APP_PATH/Contents/Resources/mac.icns" \
@@ -588,19 +398,9 @@ jobs:
             "$DMG_NAME" \
             dmg_temp/
 
-      - name: Upload macOS artifact to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.event.release.tag_name }}
-          files: txdedit-macos-x64.dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload macOS artifact as build artifact
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: txdedit-macos-x64
           path: txdedit-macos-x64.dmg
-          retention-days: 30
+          retention-days: 7
