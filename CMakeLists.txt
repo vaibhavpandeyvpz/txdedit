@@ -197,7 +197,6 @@ if(WIN32)
 endif()
 
 # GoogleTest for unit testing (optional)
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_libtxd.cpp)
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -237,5 +236,3 @@ target_include_directories(txd_tests PRIVATE
 # Register tests with CTest
 include(GoogleTest)
 gtest_discover_tests(txd_tests)
-endif()
-
