@@ -198,44 +198,44 @@ endif()
 
 # GoogleTest for unit testing (optional)
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_libtxd.cpp)
-    include(FetchContent)
-    FetchContent_Declare(
-      googletest
-      GIT_REPOSITORY https://github.com/google/googletest.git
-      GIT_TAG v1.14.0
-    )
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.14.0
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
-    # Enable testing
-    enable_testing()
+# Enable testing
+enable_testing()
 
-    # Test executable
-    add_executable(txd_tests
-        tests/test_libtxd.cpp
-    )
+# Test executable
+add_executable(txd_tests
+    tests/test_libtxd.cpp
+)
 
-    target_link_libraries(txd_tests PRIVATE
-        libtxd
-        GTest::gtest
-        GTest::gtest_main
-        GTest::gmock
-    )
+target_link_libraries(txd_tests PRIVATE
+    libtxd
+    GTest::gtest
+    GTest::gtest_main
+    GTest::gmock
+)
 
-    # Link filesystem library for GCC on Linux (needed for std::filesystem)
-    # Note: Clang on macOS includes filesystem in the standard library
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND NOT APPLE)
-        target_link_libraries(txd_tests PRIVATE stdc++fs)
-    endif()
+# Link filesystem library for GCC on Linux (needed for std::filesystem)
+# Note: Clang on macOS includes filesystem in the standard library
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND NOT APPLE)
+    target_link_libraries(txd_tests PRIVATE stdc++fs)
+endif()
 
-    # Add test directory to include path
-    target_include_directories(txd_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-    )
+# Add test directory to include path
+target_include_directories(txd_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
-    # Register tests with CTest
-    include(GoogleTest)
-    gtest_discover_tests(txd_tests)
+# Register tests with CTest
+include(GoogleTest)
+gtest_discover_tests(txd_tests)
 endif()
 

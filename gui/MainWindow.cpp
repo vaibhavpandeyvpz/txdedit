@@ -1387,8 +1387,8 @@ void MainWindow::updateTextureProperties() {
     TXDFileEntry* entry = model->getTexture(selectedTextureIndex);
     if (entry) {
         if (propertiesWidget) {
-            propertiesWidget->show();
-            propertiesWidget->setTexture(entry);
+        propertiesWidget->show();
+        propertiesWidget->setTexture(entry);
         }
     } else {
         if (propertiesWidget) propertiesWidget->clear();
@@ -1500,11 +1500,19 @@ void MainWindow::addTexture() {
     entry.mipmapCount = 1;
     entry.filterFlags = 0;
     entry.isNew = true;
+    entry.platform = LibTXD::Platform::D3D8;  // Default to D3D8 for VC compatibility
     
-    // Copy RGBA data
-    const uint8_t* imageData = rgbaImage.constBits();
+    // Copy RGBA data (handle potential scanline padding)
     size_t dataSize = width * height * 4;
-    entry.diffuse.assign(imageData, imageData + dataSize);
+    entry.diffuse.resize(dataSize);
+    int bytesPerLine = rgbaImage.bytesPerLine();
+    int expectedBytesPerLine = width * 4;
+    
+    for (uint32_t y = 0; y < height; ++y) {
+        const uint8_t* srcRow = rgbaImage.constScanLine(y);
+        uint8_t* dstRow = entry.diffuse.data() + (y * expectedBytesPerLine);
+        std::memcpy(dstRow, srcRow, expectedBytesPerLine);
+    }
     
     // Add to model
     model->addTexture(std::move(entry));
@@ -1759,11 +1767,18 @@ void MainWindow::importTexture() {
     entry.mipmapCount = 1;
     entry.filterFlags = 0;
     entry.isNew = true;
+    entry.platform = LibTXD::Platform::D3D8;  // Default to D3D8 for VC compatibility
     
-    // Copy RGBA data
-    const uint8_t* imageData = rgbaImage.constBits();
+    // Copy RGBA data (handle potential scanline padding)
     size_t dataSize = width * height * 4;
-    entry.diffuse.assign(imageData, imageData + dataSize);
+    entry.diffuse.resize(dataSize);
+    int expectedBytesPerLine = width * 4;
+    
+    for (uint32_t y = 0; y < height; ++y) {
+        const uint8_t* srcRow = rgbaImage.constScanLine(y);
+        uint8_t* dstRow = entry.diffuse.data() + (y * expectedBytesPerLine);
+        std::memcpy(dstRow, srcRow, expectedBytesPerLine);
+    }
     
     // Add to model
     model->addTexture(std::move(entry));
@@ -2003,25 +2018,28 @@ void MainWindow::onReplaceDiffuseRequested(int index) {
     }
     
     // Prepare new texture data
-    const uint8_t* imageData = rgbaImage.constBits();
     uint32_t newWidth = rgbaImage.width();
     uint32_t newHeight = rgbaImage.height();
     size_t dataSize = newWidth * newHeight * 4;
     std::vector<uint8_t> newTextureData(dataSize);
     
+    // Copy image data handling potential scanline padding
+    int bytesPerLine = rgbaImage.bytesPerLine();
+    int expectedBytesPerLine = newWidth * 4;
+    
+    for (uint32_t y = 0; y < newHeight; ++y) {
+        const uint8_t* srcRow = rgbaImage.constScanLine(y);
+        uint8_t* dstRow = newTextureData.data() + (y * expectedBytesPerLine);
+        std::memcpy(dstRow, srcRow, expectedBytesPerLine);
+    }
+    
     if (hadAlpha && existingRGBA && !dimensionsChanged) {
-        // Preserve existing alpha channel, replace RGB (dimensions match)
+        // Preserve existing alpha channel from original texture
         for (size_t i = 0; i < dataSize; i += 4) {
-            newTextureData[i] = imageData[i];     // R
-            newTextureData[i + 1] = imageData[i + 1]; // G
-            newTextureData[i + 2] = imageData[i + 2]; // B
             newTextureData[i + 3] = existingRGBA[i + 3]; // A (preserve existing)
         }
         entry->hasAlpha = true;
     } else {
-        // Replace everything (including alpha if new image has it)
-        std::memcpy(newTextureData.data(), imageData, dataSize);
-        
         // If dimensions changed and texture had alpha, reset alpha to white (#ffffff)
         if (needsAlphaReset) {
             for (size_t i = 3; i < dataSize; i += 4) {

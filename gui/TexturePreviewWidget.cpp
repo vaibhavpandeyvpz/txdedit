@@ -171,7 +171,7 @@ void TexturePreviewWidget::clear() {
         tabWidget->hide();
     }
     if (placeholderWidget) {
-        placeholderWidget->show();
+    placeholderWidget->show();
     }
     if (imageView) {
         imageView->clear();

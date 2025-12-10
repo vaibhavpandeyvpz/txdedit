@@ -219,7 +219,7 @@ bool TextureDictionary::writeToStream(std::ostream& stream) const {
     
     // Write all textures
     for (const auto& texture : textures) {
-        texture.writeD3D(stream);
+        texture.writeD3D(stream, version);
     }
     
     // Write extension section (empty)

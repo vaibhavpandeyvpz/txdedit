@@ -79,8 +79,8 @@ void TextureListWidget::addTexture(const TXDFileEntry* entry, int index) {
     // Create thumbnail from RGBA data
     if (!entry->diffuse.empty()) {
         QPixmap thumbnail = createThumbnail(entry->diffuse.data(), entry->width, entry->height, entry->hasAlpha);
-        if (!thumbnail.isNull()) {
-            item->setIcon(QIcon(thumbnail));
+    if (!thumbnail.isNull()) {
+        item->setIcon(QIcon(thumbnail));
         }
     }
     
@@ -109,8 +109,8 @@ void TextureListWidget::updateTexture(const TXDFileEntry* entry, int index) {
         
         if (!entry->diffuse.empty()) {
             QPixmap thumbnail = createThumbnail(entry->diffuse.data(), entry->width, entry->height, entry->hasAlpha);
-            if (!thumbnail.isNull()) {
-                item->setIcon(QIcon(thumbnail));
+        if (!thumbnail.isNull()) {
+            item->setIcon(QIcon(thumbnail));
             }
         }
     }

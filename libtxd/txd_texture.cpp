@@ -278,24 +278,24 @@ bool Texture::readPS2(std::istream& stream) {
     return false;
 }
 
-uint32_t Texture::writeD3D(std::ostream& stream) const {
+uint32_t Texture::writeD3D(std::ostream& stream, uint32_t version) const {
     size_t sectionStart = stream.tellp();
     
     // Write section header (will update later)
     ChunkHeader sectionHeader;
     sectionHeader.type = ChunkType::TEXTURENATIVE;
     sectionHeader.length = 0; // Will update
-    sectionHeader.version = 0x34000; // Default SA version
+    sectionHeader.version = version;
     sectionHeader.write(stream);
     
     // Write struct
-    uint32_t structSize = writeD3DStruct(stream);
+    uint32_t structSize = writeD3DStruct(stream, version);
     
     // Write extension section (empty)
     ChunkHeader extHeader;
     extHeader.type = ChunkType::EXTENSION;
     extHeader.length = 0;
-    extHeader.version = sectionHeader.version;
+    extHeader.version = version;
     extHeader.write(stream);
     
     // Update section size
@@ -308,14 +308,14 @@ uint32_t Texture::writeD3D(std::ostream& stream) const {
     return static_cast<uint32_t>(sectionEnd - sectionStart);
 }
 
-uint32_t Texture::writeD3DStruct(std::ostream& stream) const {
+uint32_t Texture::writeD3DStruct(std::ostream& stream, uint32_t version) const {
     size_t structStart = stream.tellp();
     
     // Write struct header (will update later)
     ChunkHeader structHeader;
     structHeader.type = ChunkType::STRUCT;
     structHeader.length = 0; // Will update
-    structHeader.version = 0x34000;
+    structHeader.version = version;
     structHeader.write(stream);
     
     // Write platform

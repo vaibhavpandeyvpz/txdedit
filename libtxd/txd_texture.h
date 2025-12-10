@@ -68,7 +68,7 @@ public:
     bool readPS2(std::istream& stream);
     
     // Writing
-    uint32_t writeD3D(std::ostream& stream) const;
+    uint32_t writeD3D(std::ostream& stream, uint32_t version = 0x1803FFFF) const;
     
     // Utility
     void clear();
@@ -95,7 +95,7 @@ private:
     bool readD3DStruct(std::istream& stream, ChunkHeader& header);
     bool readXboxStruct(std::istream& stream, ChunkHeader& header);
     bool readPS2Struct(std::istream& stream, ChunkHeader& header);
-    uint32_t writeD3DStruct(std::ostream& stream) const;
+    uint32_t writeD3DStruct(std::ostream& stream, uint32_t version) const;
 };
 
 } // namespace LibTXD
